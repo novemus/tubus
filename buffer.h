@@ -34,12 +34,6 @@ struct const_buffer : public boost::asio::const_buffer
     {
     }
 
-    const_buffer(const void* data, size_t size) noexcept(true) 
-        : const_buffer(boost::shared_array<uint8_t>(new uint8_t[size]), size)
-    {
-        std::memcpy(m_array.get(), data, size);
-    }
-
     const_buffer(const std::string& str) noexcept(true) 
         : const_buffer(boost::shared_array<uint8_t>(new uint8_t[str.size()]), str.size())
     {
@@ -272,6 +266,22 @@ private:
     boost::shared_array<uint8_t> m_array;
 
 };
+
+template<class container_type> const_buffer wrap_const_buffer(const container_type& container)
+{
+    if (std::is_same<container_type, const_buffer>::value)
+        return container;
+    
+    return const_buffer(boost::shared_array<uint8_t>(const_cast<uint8_t*>(container.data()), [](uint8_t*) {}), container.size());
+}
+
+template<class container_type> mutable_buffer wrap_mutable_buffer(const container_type& container)
+{
+    if (std::is_same<container_type, mutable_buffer>::value)
+        return container;
+    
+    return mutable_buffer(boost::shared_array<uint8_t>(container.data(), [](uint8_t*) {}), container.size());
+}
 
 class buffer_factory : public std::enable_shared_from_this<buffer_factory>
 {
