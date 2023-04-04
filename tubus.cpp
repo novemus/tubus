@@ -844,13 +844,13 @@ protected:
 
         if (m_connector.valid(pack))
         {
-            m_connector.parse(pack);
-            
             if (m_connector.status() == state::linked)
             {
                 m_istreamer.parse(pack);
                 m_ostreamer.parse(pack);
             }
+            
+            m_connector.parse(pack);
 
             if (m_connector.status() == state::tearing || m_connector.status() == state::shutting)
             {
@@ -971,6 +971,11 @@ public:
         , m_ostreamer(io)
         , m_secret(secret)
     {
+    }
+
+    ~transport() noexcept(true) override
+    {
+        close();
     }
 
     void open() noexcept(false) override

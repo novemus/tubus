@@ -4,7 +4,7 @@ project(tubus VERSION 1.0)
 set(TESTS_NAME tubus_ut)
 
 set(SOURCES tubus.cpp)
-set(TESTS_SOURCES tubus.cpp tests/buffer.cpp tests/packet.cpp tests/tubus.cpp)
+set(TESTS_SOURCES tubus.cpp tests/buffer.cpp tests/packet.cpp tests/tubus.cpp tests/socket.cpp)
 
 add_definitions(-DTUBUS_EXPORTS)
 

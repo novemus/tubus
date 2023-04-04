@@ -13,65 +13,151 @@
 #include "tubus.h"
 #include <future>
 
-#define exec_async_method(object, method, ec) [obj = object, &ec]() \
-{ \
-    if (obj) \
-    { \
-        std::promise<boost::system::error_code> promise; \
-        std::future<boost::system::error_code> future = promise.get_future(); \
-        obj->method([&promise](const boost::system::error_code& error) \
-        { \
-            promise.set_value(error); \
-        }); \
-        ec = future.get(); \
-        return; \
-    } \
-    ec = boost::asio::error::broken_pipe; \
-}() \
+namespace tubus { namespace detail {
 
-#define exec_async_io_method(object, method, buffer, ec) [obj = object, buf = buffer, &ec]() \
-{ \
-    if (obj) \
-    { \
-        std::promise<std::pair<boost::system::error_code, size_t>> promise; \
-        std::future<std::pair<boost::system::error_code, size_t>> future = promise.get_future(); \
-        obj->method(buf, [&promise](const boost::system::error_code& error, size_t size) \
-        { \
-            promise.set_value(std::make_pair(error, size)); \
-        }); \
-        auto res = future.get(); \
-        ec = res.first; \
-        return res.second; \
-    } \
-    ec = boost::asio::error::broken_pipe; \
-    return 0ul; \
-}() \
+template<class async_method, class handler>
+void schedule(channel_ptr channel, async_method method, boost::asio::io_context& io, handler&& callback) noexcept(true)
+{
+    if (!channel)
+    {
+        io.post(std::bind(callback, boost::asio::error::broken_pipe));
+        return;
+    }
 
-namespace tubus {
+    (channel.get()->*method)(callback);
+}
+
+template<class async_method>
+void execute(channel_ptr channel, async_method method, boost::system::error_code& ec) noexcept(true)
+{ 
+    if (channel) 
+    {
+        std::promise<boost::system::error_code> promise; 
+        std::future<boost::system::error_code> future = promise.get_future(); 
+        (channel.get()->*method)([&promise](const boost::system::error_code& error) 
+        { 
+            promise.set_value(error); 
+        }); 
+        ec = future.get(); 
+        return; 
+    } 
+    ec = boost::asio::error::broken_pipe; 
+}
+
+template<class tubus_buffer, class buffer_iterator, class async_io_method, class handler>
+void schedule_io(channel_ptr channel, async_io_method method, const buffer_iterator& begin, const buffer_iterator& end, boost::asio::io_context& io, handler&& callback, size_t result) noexcept(true)
+{
+    if (!channel)
+    {
+        io.post(std::bind(callback, boost::asio::error::broken_pipe, result));
+        return;
+    }
+
+    if (begin == end)
+    {
+        io.post(std::bind(callback, boost::system::error_code(), result));
+        return;
+    }
+
+    (channel.get()->*method)(*begin, [&io, channel, method, begin, end, callback, result](const boost::system::error_code& error, size_t size)
+    {
+        if (error)
+        {
+            io.post(std::bind(callback, error, result + size));
+            return;
+        }
+
+        schedule_io<tubus_buffer>(channel, method, std::next(begin, 1), end, io, callback, result + size);
+    });
+}
+
+template<class tubus_buffer, class buffer_iterator, class async_io_method>
+size_t execute_io(channel_ptr channel, async_io_method method, const buffer_iterator& begin, const buffer_iterator& end, boost::asio::io_context& io, boost::system::error_code& ec) noexcept(true)
+{
+    if (!channel)
+    {
+        ec = boost::asio::error::broken_pipe;
+        return 0;
+    }
+
+    std::promise<size_t> promise;
+    std::future<size_t> future = promise.get_future();
+
+    schedule_io<tubus_buffer>(channel, method, begin, end, io, [&](const boost::system::error_code& error, size_t size)
+    {
+        ec = error;
+        promise.set_value(size);
+    }, 0);
+
+    return future.get();
+}
+
+}
 
 typedef boost::asio::ip::udp::endpoint endpoint;
 
 class socket
 {
-    boost::asio::io_context& m_io;
-    channel_ptr m_channel;
+    struct context
+    {
+        boost::asio::io_context& asio;
+        endpoint local;
+        endpoint remote;
+        channel_ptr channel;
+
+        context(boost::asio::io_context& io) : asio(io)
+        {
+        }
+
+        context(context&& other) 
+            : asio(other.asio)
+            , local(other.local)
+            , remote(other.remote)
+            , channel(other.channel)
+        {
+            other.local = endpoint();
+            other.remote = endpoint();
+            other.channel.reset();
+        }
+
+        context(const context&) = delete;
+        context& operator=(const context&) = delete;
+    };
+
+    std::unique_ptr<context> m_ctx;
+
+    socket(const socket&) = delete;
+    socket& operator=(const socket&) = delete;
 
 public:
 
     typedef socket lowest_layer_type;
     typedef boost::asio::io_context::executor_type executor_type;
 
-    socket(boost::asio::io_context& io) 
-        : m_io(io)
+    socket(boost::asio::io_context& io) noexcept(true) 
+        : m_ctx(new context(io))
     {
+    }
+
+    socket(socket&& other) noexcept(true)
+        : m_ctx(new context(std::move(*(other.m_ctx))))
+    {
+    }
+
+    socket& operator=(socket&& other) noexcept(true)
+    {
+        m_ctx = std::make_unique<context>(std::move(*(other.m_ctx)));
+        return *this;
     }
 
     void open(const endpoint& le, const endpoint& re, uint64_t secret) noexcept(false)
     {
-        if (!m_channel)
+        if (m_ctx->channel == 0)
         {
-            m_channel = create_channel(m_io, le, re, secret);
-            m_channel->open();
+            m_ctx->local = le;
+            m_ctx->remote = re;
+            m_ctx->channel = create_channel(m_ctx->asio, le, re, secret);
+            m_ctx->channel->open();
             return;
         }
 
@@ -92,16 +178,17 @@ public:
 
     void close() noexcept(true)
     {
-        if (m_channel)
-            m_channel->close();
-
-        m_channel.reset();
+        if (m_ctx->channel)
+        {
+            m_ctx->channel->close();
+            m_ctx->channel.reset();
+        }
     }
 
     void connect() noexcept(false)
     {
         boost::system::error_code ec;
-        exec_async_method(m_channel, connect, ec);
+        detail::execute(m_ctx->channel, &channel::connect, ec);
 
         if (ec)
             boost::asio::detail::throw_error(ec, "connect");
@@ -109,24 +196,19 @@ public:
 
     void connect(boost::system::error_code& ec) noexcept(true)
     {
-        exec_async_method(m_channel, connect, ec);
+        detail::execute(m_ctx->channel, &channel::connect, ec);
     }
 
-    void async_connect(const callback& handler) noexcept(true)
+    template<class connect_handler>
+    void async_connect(connect_handler&& callback) noexcept(true)
     {
-        if (m_channel)
-        {
-            m_channel->connect(handler);
-            return;
-        }
-
-        m_io.post(std::bind(handler, boost::asio::error::broken_pipe));
+        detail::schedule(m_ctx->channel, &channel::connect, m_ctx->asio, callback);
     }
 
     void accept() noexcept(false)
     {
         boost::system::error_code ec;
-        exec_async_method(m_channel, accept, ec);
+        detail::execute(m_ctx->channel, &channel::accept, ec);
 
         if (ec)
             boost::asio::detail::throw_error(ec, "accept");
@@ -134,24 +216,19 @@ public:
 
     void accept(boost::system::error_code& ec) noexcept(true)
     {
-        exec_async_method(m_channel, accept, ec);
+        detail::execute(m_ctx->channel, &channel::accept, ec);
     }
 
-    void async_accept(const callback& handler) noexcept(true)
+    template<class accept_handler>
+    void async_accept(accept_handler&& callback) noexcept(true)
     {
-        if (m_channel)
-        {
-            m_channel->accept(handler);
-            return;
-        }
-
-        m_io.post(std::bind(handler, boost::asio::error::broken_pipe));
+        detail::schedule(m_ctx->channel, &channel::accept, m_ctx->asio, callback);
     }
 
     void shutdown() noexcept(false)
     {
         boost::system::error_code ec;
-        exec_async_method(m_channel, shutdown, ec);
+        detail::execute(m_ctx->channel, &channel::shutdown, ec);
 
         if (ec)
             boost::asio::detail::throw_error(ec, "shutdown");
@@ -159,18 +236,13 @@ public:
 
     void shutdown(boost::system::error_code& ec) noexcept(true)
     {
-        exec_async_method(m_channel, shutdown, ec);
+        detail::execute(m_ctx->channel, &channel::shutdown, ec);
     }
 
-    void async_shutdown(const callback& handler) noexcept(true)
+    template<class shutdown_handler>
+    void async_shutdown(shutdown_handler&& callback) noexcept(true)
     {
-        if (!m_channel)
-        {
-            m_io.post(std::bind(handler, boost::system::error_code()));
-            return;
-        }
-
-        m_channel->shutdown(handler);
+        detail::schedule(m_ctx->channel, &channel::shutdown, m_ctx->asio, callback);
     }
 
     socket& lowest_layer() noexcept(true)
@@ -178,13 +250,11 @@ public:
         return *this;
     }
 
-    // SyncReadStream, SyncWriteStream, AsyncReadStream and AsyncWriteStream concepts
-
-    template<class mutable_buffer_type>
-    size_t read_some(const mutable_buffer_type& mb) noexcept(false)
+    template<class mutable_buffers>
+    size_t read_some(const mutable_buffers& buffer) noexcept(false)
     {
         boost::system::error_code ec;
-        auto size = exec_async_io_method(m_channel, read, wrap_mutable_buffer(mb), ec);
+        auto size = detail::execute_io<mutable_buffer>(m_ctx->channel, &channel::read, buffer.begin(), buffer.end(), m_ctx->asio, ec);
 
         if (ec)
             boost::asio::detail::throw_error(ec, "read_some");
@@ -192,17 +262,17 @@ public:
         return size;
     }
 
-    template<class mutable_buffer_type>
-    size_t read_some(const mutable_buffer_type& mb, boost::system::error_code& ec) noexcept(true)
+    template<class mutable_buffers>
+    size_t read_some(const mutable_buffers& buffer, boost::system::error_code& ec) noexcept(true)
     {
-        return exec_async_io_method(m_channel, read, wrap_mutable_buffer(mb), ec);
+        return detail::execute_io<mutable_buffer>(m_ctx->channel, &channel::read, buffer.begin(), buffer.end(), m_ctx->asio, ec);
     }
 
-    template<class const_buffer_type>
-    size_t write_some(const const_buffer_type& cb) noexcept(false)
+    template<class const_buffers>
+    size_t write_some(const const_buffers& buffer) noexcept(false)
     {
         boost::system::error_code ec;
-        auto size = exec_async_io_method(m_channel, write, wrap_const_buffer(cb), ec);
+        auto size = detail::execute_io<const_buffer>(m_ctx->channel, &channel::write, buffer.begin(), buffer.end(), m_ctx->asio, ec);
 
         if (ec)
             boost::asio::detail::throw_error(ec, "write_some");
@@ -210,39 +280,37 @@ public:
         return size;
     }
 
-    template<class const_buffer_type>
-    size_t write_some(const const_buffer_type& cb, boost::system::error_code& ec) noexcept(true)
+    template<class const_buffers>
+    size_t write_some(const const_buffers& buffer, boost::system::error_code& ec) noexcept(true)
     {
-        return exec_async_io_method(m_channel, write, wrap_const_buffer(cb), ec);
+        return detail::execute_io<const_buffer>(m_ctx->channel, &channel::write, buffer.begin(), buffer.end(), m_ctx->asio, ec);
     }
 
-    template<class mutable_buffer_type>
-    void async_read_some(const mutable_buffer_type& mb, const io_callback& handler) noexcept(true)
+    template<class mutable_buffers, class read_handler>
+    void async_read_some(const mutable_buffers& buffer, read_handler&& callback) noexcept(true)
     {
-        if (!m_channel)
-        {
-            m_io.post(std::bind(handler, boost::asio::error::broken_pipe, 0));
-            return;
-        }
-
-        m_channel->read(wrap_mutable_buffer(mb), handler);
+        detail::schedule_io<mutable_buffer>(m_ctx->channel, &channel::read, buffer.begin(), buffer.end(), m_ctx->asio, callback, 0);
     }
 
-    template<class const_buffer_type>
-    void async_write_some(const const_buffer_type& cb, const io_callback& handler) noexcept(true)
+    template<class const_buffers, class write_handler>
+    void async_write_some(const const_buffers& buffer, write_handler&& callback) noexcept(true)
     {
-        if (!m_channel)
-        {
-            m_io.post(std::bind(handler, boost::asio::error::broken_pipe, 0));
-            return;
-        }
-
-        m_channel->write(wrap_const_buffer(cb), handler);
+        detail::schedule_io<const_buffer>(m_ctx->channel, &channel::write, buffer.begin(), buffer.end(), m_ctx->asio, callback, 0);
     }
 
-    executor_type get_executor() noexcept(true)
+    executor_type get_executor() const noexcept(true)
     {
-        return m_io.get_executor();
+        return m_ctx->asio.get_executor();
+    }
+
+    endpoint local_endpoint() const noexcept(true)
+    {
+        return m_ctx->local;
+    }
+
+    endpoint remote_endpoint() const noexcept(true)
+    {
+        return m_ctx->remote;
     }
 };
 

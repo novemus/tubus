@@ -13,6 +13,8 @@
 #include "../buffer.h"
 #include <boost/test/included/unit_test.hpp>
 
+BOOST_AUTO_TEST_SUITE(buffer);
+
 BOOST_AUTO_TEST_CASE(mutable_buffer)
 {
     BOOST_REQUIRE_NO_THROW(tubus::mutable_buffer());
@@ -269,3 +271,5 @@ BOOST_AUTO_TEST_CASE(buffer_factory)
 
     BOOST_CHECK(buf1.data() != buf2.data() && buf1.data() != buf3.data() && buf2.data() != buf3.data());
 }
+
+BOOST_AUTO_TEST_SUITE_END();

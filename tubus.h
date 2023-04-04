@@ -26,7 +26,7 @@ typedef std::function<void(const boost::system::error_code&, size_t)> io_callbac
 
 struct TUBUS_CLASS_DECLSPEC channel
 {
-    virtual ~channel() {}
+    virtual ~channel() noexcept(true) {}
     virtual void open() noexcept(false) = 0;
     virtual void close() noexcept(true) = 0;
     virtual void connect(const callback& handle) noexcept(true) = 0;

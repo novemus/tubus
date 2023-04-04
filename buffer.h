@@ -30,11 +30,22 @@ struct const_buffer : public boost::asio::const_buffer
     typedef const_buffer value_type;
     typedef const const_buffer* const_iterator;
 
-    const_buffer() noexcept(true) 
+    const_buffer() noexcept(true)
     {
     }
 
-    const_buffer(const std::string& str) noexcept(true) 
+    const_buffer(const const_buffer& other) noexcept(true)
+        : boost::asio::const_buffer(other)
+        , m_array(other.m_array)
+    {
+    }
+
+    const_buffer(const boost::asio::const_buffer& other) noexcept(true)
+        : const_buffer(boost::shared_array<uint8_t>(static_cast<uint8_t*>(const_cast<void*>(other.data())), [](uint8_t*){}), other.size())
+    {
+    }
+
+    const_buffer(const std::string& str) noexcept(true)
         : const_buffer(boost::shared_array<uint8_t>(new uint8_t[str.size()]), str.size())
     {
         std::memcpy(m_array.get(), str.data(), str.size());
@@ -136,8 +147,19 @@ struct mutable_buffer : public boost::asio::mutable_buffer
     {
     }
 
-    mutable_buffer(size_t size) noexcept(true) 
+    mutable_buffer(size_t size) noexcept(true)
         : mutable_buffer(boost::shared_array<uint8_t>(new uint8_t[size]), size)
+    {
+    }
+
+    mutable_buffer(const mutable_buffer& other) noexcept(true)
+        : boost::asio::mutable_buffer(other)
+        , m_array(other.m_array)
+    {
+    }
+
+    mutable_buffer(const boost::asio::mutable_buffer& other) noexcept(true)
+        : mutable_buffer(boost::shared_array<uint8_t>(static_cast<uint8_t*>(other.data()), [](uint8_t*){}), other.size())
     {
     }
 
@@ -147,16 +169,10 @@ struct mutable_buffer : public boost::asio::mutable_buffer
         std::memcpy(m_array.get(), data.data(), data.size());
     }
 
-    mutable_buffer(const std::string& str) noexcept(true) 
+    mutable_buffer(const std::string& str) noexcept(true)
         : mutable_buffer(boost::shared_array<uint8_t>(new uint8_t[str.size()]), str.size())
     {
         std::memcpy(m_array.get(), str.data(), str.size());
-    }
-
-    mutable_buffer(const const_buffer& buffer) noexcept(true) 
-        : mutable_buffer(boost::shared_array<uint8_t>(new uint8_t[buffer.size()]), buffer.size())
-    {
-        std::memcpy(m_array.get(), buffer.data(), buffer.size());
     }
 
     mutable_buffer(boost::shared_array<uint8_t> array, size_t size) noexcept(true)
@@ -266,22 +282,6 @@ private:
     boost::shared_array<uint8_t> m_array;
 
 };
-
-template<class container_type> const_buffer wrap_const_buffer(const container_type& container)
-{
-    if (std::is_same<container_type, const_buffer>::value)
-        return container;
-    
-    return const_buffer(boost::shared_array<uint8_t>(const_cast<uint8_t*>(container.data()), [](uint8_t*) {}), container.size());
-}
-
-template<class container_type> mutable_buffer wrap_mutable_buffer(const container_type& container)
-{
-    if (std::is_same<container_type, mutable_buffer>::value)
-        return container;
-    
-    return mutable_buffer(boost::shared_array<uint8_t>(container.data(), [](uint8_t*) {}), container.size());
-}
 
 class buffer_factory : public std::enable_shared_from_this<buffer_factory>
 {

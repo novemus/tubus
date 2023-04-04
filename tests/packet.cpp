@@ -11,7 +11,9 @@
 #include "../packet.h"
 #include <boost/test/unit_test.hpp>
 
-BOOST_AUTO_TEST_CASE(tubus_cursor)
+BOOST_AUTO_TEST_SUITE(packet);
+
+BOOST_AUTO_TEST_CASE(cursor)
 {
     tubus::mutable_buffer mb(8);
     std::memset(mb.data(), 0, mb.size());
@@ -34,7 +36,7 @@ BOOST_AUTO_TEST_CASE(snippet)
     BOOST_CHECK_EQUAL(snip.fragment().data(), (uint8_t*)mb.data() + 8);
 }
 
-BOOST_AUTO_TEST_CASE(tubus_section)
+BOOST_AUTO_TEST_CASE(section)
 {
     tubus::mutable_buffer mb(1024);
     tubus::section sect(mb);
@@ -83,7 +85,7 @@ BOOST_AUTO_TEST_CASE(tubus_section)
     BOOST_CHECK_EQUAL(sect.size(), 1024 - tubus::section::header_size * 3 - curs.size() - snip.size());
 }
 
-BOOST_AUTO_TEST_CASE(tubus_packet)
+BOOST_AUTO_TEST_CASE(packet)
 {
     tubus::mutable_buffer mb(1024);
     tubus::packet pack(mb);
@@ -155,3 +157,5 @@ BOOST_AUTO_TEST_CASE(tubus_packet)
     BOOST_CHECK_EQUAL(pack.size(), copy.size());
     BOOST_CHECK_EQUAL(std::memcmp(pack.data(), copy.data(), copy.size()), 0);
 }
+
+BOOST_AUTO_TEST_SUITE_END();
