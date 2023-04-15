@@ -22,6 +22,7 @@
 #include <boost/lexical_cast.hpp>
 #include <boost/asio/deadline_timer.hpp>
 #include <boost/date_time/posix_time/posix_time_types.hpp>
+#include <boost/date_time/posix_time/posix_time_io.hpp>
 
 namespace tubus {
 
@@ -448,6 +449,13 @@ class transport : public channel, public std::enable_shared_from_this<transport>
                         iter = m_writers.erase(iter);
                     }
                 }
+                else if (type == section::edge)
+                {
+                    cursor curs(sect.value());
+
+                    m_range = std::max(m_range, curs.handle());
+                    m_acks.emplace(m_range);
+                }
 
                 sect.advance();
                 type = sect.type();
@@ -484,16 +492,29 @@ class transport : public channel, public std::enable_shared_from_this<transport>
 
             while (m_buffer.available() && m_moves.size() < snippet_flight())
             {
-                if (sect.size() <= section::header_size + snippet::handle_size)
+                uint64_t limit = m_range - m_buffer.head();
+
+                if (limit == 0 || sect.size() <= section::header_size + snippet::handle_size)
                     break;
 
                 auto handle = m_buffer.head();
-                auto buffer = m_buffer.pull(sect.size() - section::header_size - snippet::handle_size);
-                
+                auto buffer = m_buffer.pull(
+                    std::min(limit, sect.size() - section::header_size - snippet::handle_size)
+                    );
+
                 sect.snippet(handle, buffer);
                 sect.advance();
 
                 m_moves.emplace(handle, flight(buffer, now + resend_timeout()));
+            }
+
+            auto iter = m_acks.begin();
+            while (iter != m_acks.end() && sect.size() >= section::header_size + cursor::handle_size)
+            {
+                sect.cursor(section::edge|section::echo, *iter);
+                sect.advance();
+
+                iter = m_acks.erase(iter);
             }
 
             sect.stub();
@@ -517,7 +538,7 @@ class transport : public channel, public std::enable_shared_from_this<transport>
 
         bool deffered() const
         {
-            return !m_moves.empty() || m_buffer.available();
+            return !m_moves.empty() || !m_acks.empty() || (m_buffer.available() && m_buffer.head() < m_range);
         }
 
     private:
@@ -615,6 +636,8 @@ class transport : public channel, public std::enable_shared_from_this<transport>
         streambuf m_buffer;
         std::map<uint64_t, flight> m_moves;
         std::list<writer> m_writers;
+        std::set<uint64_t> m_acks;
+        uint64_t m_range = 0;
         callback on_error;
     };
 
@@ -657,7 +680,7 @@ class transport : public channel, public std::enable_shared_from_this<transport>
                     
                     if (m_buffer.map(snip.handle(), snip.fragment()))
                     {
-                        m_acks.emplace_back(snip.handle());
+                        m_acks.emplace(snip.handle());
                     }
                     else
                     {
@@ -665,6 +688,14 @@ class transport : public channel, public std::enable_shared_from_this<transport>
                             m_io.post(boost::bind(on_error, boost::asio::error::no_buffer_space));
 
                         break;
+                    }
+                }
+                else if (type == (section::edge | section::echo))
+                {
+                    cursor curs(sect.value());
+                    if (m_edge.range == curs.handle())
+                    {
+                        m_edge.time = boost::posix_time::max_date_time;
                     }
                 }
 
@@ -682,24 +713,39 @@ class transport : public channel, public std::enable_shared_from_this<transport>
             auto iter = m_acks.begin();
             while (iter != m_acks.end() && sect.size() >= section::header_size + cursor::handle_size)
             {
-                sect.cursor(*iter);
+                sect.cursor(section::move|section::echo, *iter);
                 sect.advance();
 
                 iter = m_acks.erase(iter);
             }
             
+            if (sect.size() >= section::header_size + cursor::handle_size)
+            {
+                auto now = boost::posix_time::microsec_clock::universal_time();
+                if (m_edge.time <= now)
+                {
+                    sect.cursor(section::edge, m_edge.range);
+                    sect.advance();
+
+                    m_edge.time = now + resend_timeout();
+                }
+            }
+
             sect.stub();
         }
 
         void append(const mutable_buffer& buf, const io_callback& caller)
         {
             m_readers.emplace_back(buf, caller);
+            m_edge.range += buf.size();
+            m_edge.time = boost::posix_time::min_date_time;
+
             transmit();
         }
 
         bool deffered() const
         {
-            return !m_acks.empty();
+            return !m_acks.empty() || m_edge.time != boost::posix_time::max_date_time;
         }
 
     private:
@@ -811,10 +857,19 @@ class transport : public channel, public std::enable_shared_from_this<transport>
             {}
         };
         
+        struct edge_job
+        {
+            uint64_t range;
+            boost::posix_time::ptime time;
+
+            edge_job() : range(0), time(boost::posix_time::max_date_time) {}
+        };
+
         boost::asio::io_context& m_io;
         streambuf m_buffer;
-        std::list<uint64_t> m_acks;
+        std::set<uint64_t> m_acks;
         std::list<reader> m_readers;
+        edge_job m_edge;
         callback on_error;
     };
 
@@ -1063,6 +1118,8 @@ public:
         }
 
         m_istreamer.append(buffer, handler);
+        boost::system::error_code err;
+        m_timer.cancel(err);
     }
 
     void write(const const_buffer& buffer, const io_callback& handler) noexcept(true) override

@@ -31,13 +31,14 @@ struct section : public mutable_buffer
     typedef const_buffer value_type;
     typedef const const_buffer* const_iterator;
 
-    enum flag
+    enum flag : uint16_t
     {
         echo = 1,
         link = 2,
         tear = 4,
         ping = 6,
-        move = 8
+        move = 8,
+        edge = 10
     };
 
     explicit section()
@@ -59,9 +60,9 @@ struct section : public mutable_buffer
         set<uint16_t>(sizeof(uint16_t), 0);
     }
 
-    void cursor(uint64_t handle)
+    void cursor(uint16_t type, uint64_t handle)
     {
-        set<uint16_t>(0, htons(flag::move | flag::echo));
+        set<uint16_t>(0, htons(type));
         set<uint16_t>(sizeof(uint16_t), htons(sizeof(handle)));
         set<uint64_t>(header_size, htobe64(handle));
     }
@@ -131,7 +132,7 @@ struct snippet : public mutable_buffer
 struct packet : public mutable_buffer
 {
     static constexpr size_t packet_sign = 0x0909;
-    static constexpr size_t packet_version = 0x0100;
+    static constexpr size_t packet_version = 0x0101;
     static constexpr size_t header_size = 16;
 
     packet(const mutable_buffer& buf) : mutable_buffer(buf)

@@ -43,9 +43,9 @@ BOOST_AUTO_TEST_CASE(section)
 
     BOOST_CHECK_EQUAL(sect.size(), 1024);
 
-    sect.cursor(12345);
+    sect.cursor(tubus::section::move | tubus::section::echo, 12345);
 
-    BOOST_CHECK_EQUAL(sect.type(), tubus::section::flag::move | tubus::section::echo);
+    BOOST_CHECK_EQUAL(sect.type(), tubus::section::move | tubus::section::echo);
     BOOST_CHECK_EQUAL(sect.length(), tubus::cursor::handle_size);
     BOOST_CHECK_EQUAL(sect.value().size(), tubus::cursor::handle_size);
 
@@ -108,7 +108,7 @@ BOOST_AUTO_TEST_CASE(packet)
     sect.snippet(12345, cb);
 
     sect.advance();
-    sect.cursor(12345);
+    sect.cursor(tubus::section::move | tubus::section::echo, 12345);
 
     sect.advance();
     sect.simple(tubus::section::link);

@@ -234,11 +234,14 @@ BOOST_AUTO_TEST_CASE(core)
 
     uint8_t data[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
 
+    tubus::mutable_buffer cb(sizeof(data));
+    std::memcpy(cb.data(), data, cb.size());
+
     tubus::mutable_buffer lb(sizeof(data));
     tubus::mutable_buffer rb(sizeof(data));
-
-    std::memcpy(lb.data(), data, lb.size());
-    std::memcpy(rb.data(), data, rb.size());
+    
+    std::memset(lb.data(), 0, lb.size());
+    std::memset(rb.data(), 0, rb.size());
 
     auto la = left.async_accept();
     auto rc = right.async_connect();
@@ -246,19 +249,19 @@ BOOST_AUTO_TEST_CASE(core)
     BOOST_REQUIRE_NO_THROW(la.get());
     BOOST_REQUIRE_NO_THROW(rc.get());
 
-    for(size_t i = 0; i < sizeof(data); ++i)
+    auto lr = left.async_read(lb);
+    auto rr = right.async_read(rb);
+
+    for(size_t i = 0; i < cb.size(); ++i)
     {
-        BOOST_REQUIRE_NO_THROW(left.async_write(lb.slice(i, 1)).get());
-        BOOST_REQUIRE_NO_THROW(right.async_write(rb.slice(i, 1)).get());
+        BOOST_REQUIRE_NO_THROW(left.async_write(cb.slice(i, 1)).get());
+        BOOST_REQUIRE_NO_THROW(right.async_write(cb.slice(i, 1)).get());
     }
 
-    std::memset(lb.data(), 0, lb.size());
-    std::memset(rb.data(), 0, rb.size());
-
-    BOOST_REQUIRE_NO_THROW(left.async_read(lb).get());
+    BOOST_REQUIRE_NO_THROW(lr.get());
     BOOST_CHECK_EQUAL(std::memcmp(lb.data(), data, lb.size()), 0);
 
-    BOOST_REQUIRE_NO_THROW(right.async_read(rb).get());
+    BOOST_REQUIRE_NO_THROW(rr.get());
     BOOST_CHECK_EQUAL(std::memcmp(rb.data(), data, rb.size()), 0);
 
     auto ls = left.async_shutdown();
@@ -329,10 +332,10 @@ BOOST_AUTO_TEST_CASE(integrity)
     stream_source source;
     stream_sink sink;
 
-    BOOST_REQUIRE_NO_THROW(left.async_write(source.read_some()).get());
-    BOOST_REQUIRE_NO_THROW(left.async_write(source.read_some()).get());
-    BOOST_REQUIRE_NO_THROW(left.async_write(source.read_some()).get());
-    BOOST_REQUIRE_NO_THROW(left.async_write(source.read_some()).get());
+    auto r1 = left.async_write(source.read_some());
+    auto r2 = left.async_write(source.read_some());
+    auto r3 = left.async_write(source.read_some());
+    auto r4 = left.async_write(source.read_some());
 
     tubus::mutable_buffer buffer(source.read() / 4);
 
@@ -344,6 +347,11 @@ BOOST_AUTO_TEST_CASE(integrity)
     BOOST_REQUIRE_NO_THROW(sink.write_some(buffer));
     BOOST_REQUIRE_NO_THROW(right.async_read(buffer).get());
     BOOST_REQUIRE_NO_THROW(sink.write_some(buffer));
+
+    BOOST_REQUIRE_NO_THROW(r1.get());
+    BOOST_REQUIRE_NO_THROW(r2.get());
+    BOOST_REQUIRE_NO_THROW(r3.get());
+    BOOST_REQUIRE_NO_THROW(r4.get());
 
     BOOST_CHECK_EQUAL(source.read(), sink.written());
 
@@ -376,18 +384,24 @@ BOOST_AUTO_TEST_CASE(fall)
 
     tubus::mutable_buffer buffer(1024 * 1024);
 
-    // receive buffer overflow
-    BOOST_REQUIRE_NO_THROW(left.async_write(buffer).get());
-    BOOST_REQUIRE_NO_THROW(left.async_write(buffer).get());
-    BOOST_REQUIRE_NO_THROW(left.async_write(buffer).get());
-    BOOST_REQUIRE_NO_THROW(left.async_write(buffer).get());
-    BOOST_REQUIRE_NO_THROW(left.async_write(buffer).get());
-    
+    // write buffer overflow
+    auto w1 = left.async_write(buffer);
+    auto w2 = left.async_write(buffer);
+    auto w3 = left.async_write(buffer);
+    auto w4 = left.async_write(buffer);
+    auto w5 = left.async_write(buffer);
+
     BOOST_REQUIRE_THROW(left.async_write(buffer).get(), boost::system::system_error);
     BOOST_REQUIRE_THROW(right.async_read(buffer).get(), boost::system::system_error);
 
     BOOST_REQUIRE_NO_THROW(left.close());
     BOOST_REQUIRE_NO_THROW(right.close());
+
+    BOOST_REQUIRE_THROW(w1.get(), boost::system::system_error);
+    BOOST_REQUIRE_THROW(w2.get(), boost::system::system_error);
+    BOOST_REQUIRE_THROW(w3.get(), boost::system::system_error);
+    BOOST_REQUIRE_THROW(w4.get(), boost::system::system_error);
+    BOOST_REQUIRE_THROW(w5.get(), boost::system::system_error);
 
     BOOST_REQUIRE_NO_THROW(left.open());
     BOOST_REQUIRE_NO_THROW(right.open());
