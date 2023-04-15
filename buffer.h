@@ -186,9 +186,9 @@ struct mutable_buffer : public boost::asio::mutable_buffer
     {
     }
 
-    const_iterator begin() const { return this; }
+    const_iterator begin() const noexcept(true) { return this; }
 
-    const_iterator end() const { return this + 1; }
+    const_iterator end() const noexcept(true) { return this + 1; }
 
     bool unique() const noexcept(true)
     {
@@ -288,7 +288,7 @@ class buffer_factory : public std::enable_shared_from_this<buffer_factory>
     typedef std::weak_ptr<buffer_factory> weak_ptr;
     typedef std::shared_ptr<buffer_factory> self_ptr;
 
-    static void destroy(weak_ptr weak, uint8_t* ptr)
+    static void destroy(weak_ptr weak, uint8_t* ptr) noexcept(true)
     {
         self_ptr self = weak.lock();
         if (self)
@@ -299,7 +299,7 @@ class buffer_factory : public std::enable_shared_from_this<buffer_factory>
         delete[] ptr;
     }
 
-    bool cache(uint8_t* ptr)
+    bool cache(uint8_t* ptr) noexcept(true)
     {
         std::unique_lock<std::mutex> lock(m_mutex);
 
@@ -318,7 +318,7 @@ class buffer_factory : public std::enable_shared_from_this<buffer_factory>
 
 public:
 
-    buffer_factory(size_t size) : m_size(size)
+    buffer_factory(size_t size) noexcept(true) : m_size(size)
     {
     }
 

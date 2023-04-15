@@ -36,7 +36,7 @@ mutable_buffer create_buffer(size_t size) noexcept(true)
     return res.first->second->obtain();
 }
 
-template<class value_type> value_type getenv(const std::string& name, const value_type& def)
+template<class value_type> value_type getenv(const std::string& name, const value_type& def) noexcept(true)
 {
     try
     {
@@ -53,51 +53,61 @@ template<class value_type> value_type getenv(const std::string& name, const valu
 
 class transport : public channel, public std::enable_shared_from_this<transport>
 {
-    enum state { neither, initial, accepting, connecting, linked, shutting, tearing, finished };
+    enum state 
+    { 
+        neither,
+        initial,
+        accepting,
+        connecting,
+        linked,
+        shutting,
+        tearing,
+        finished
+    };
 
-    inline static size_t max_packet_size()
+    inline static size_t max_packet_size() noexcept(true)
     {
         static size_t s_size(getenv("TUBUS_MAX_PACKET_SIZE", 1432u));
         return s_size;
     }
 
-    inline static boost::posix_time::time_duration ping_timeout()
+    inline static boost::posix_time::time_duration ping_timeout() noexcept(true)
     {
         static boost::posix_time::seconds s_timeout(getenv("TUBUS_PING_TIMEOUT", 30l));
         return s_timeout;
     }
 
-    inline static boost::posix_time::time_duration resend_timeout()
+    inline static boost::posix_time::time_duration resend_timeout() noexcept(true)
     {
         static boost::posix_time::milliseconds s_timeout(getenv("TUBUS_RESEND_TIMEOUT", 100l));
         return s_timeout;
     }
 
-    inline static boost::posix_time::time_duration shutdown_timeout()
+    inline static boost::posix_time::time_duration shutdown_timeout() noexcept(true)
     {
         static boost::posix_time::milliseconds s_timeout(getenv("TUBUS_SHUTDOWN_TIMEOUT", 2000l));
         return s_timeout;
     }
 
-    inline static size_t snippet_flight()
+    inline static size_t snippet_flight() noexcept(true)
     {
         static size_t s_flight(getenv("TUBUS_SNIPPET_FLIGHT", 48u));
         return s_flight;
     }
 
-    inline static size_t move_attempts()
+    inline static size_t move_attempts() noexcept(true)
     {
         static size_t s_attempts(getenv("TUBUS_MOVE_ATTEMPTS", 32u));
         return s_attempts;
     }
 
-    inline static size_t receive_buffer_size()
+    inline static size_t receive_buffer_size() noexcept(true)
     {
         static size_t s_size(getenv("TUBUS_RECEIVE_BUFFER_SIZE", 5ull * 1024 * 1024));
         return s_size;
     }
 
-    inline static size_t send_buffer_size()
+    inline static size_t send_buffer_size() noexcept(true)
     {
         static size_t s_size(getenv("TUBUS_SEND_BUFFER_SIZE", 5ull * 1024 * 1024));
         return s_size;
@@ -105,14 +115,14 @@ class transport : public channel, public std::enable_shared_from_this<transport>
 
     struct connector
     {
-        static uint16_t make_pin()
+        static uint16_t make_pin() noexcept(true)
         {
             static std::atomic<uint16_t> s_pin;
             uint16_t pin = ++s_pin;
             return pin > 0 ? pin : make_pin();
         };
 
-        connector(boost::asio::io_context& io)
+        connector(boost::asio::io_context& io) noexcept(true)
             : m_io(io)
             , m_status(state::neither)
             , m_local(0)
@@ -122,13 +132,13 @@ class transport : public channel, public std::enable_shared_from_this<transport>
         {
         }
 
-        void init(const callback& fallback)
+        void init(const callback& fallback) noexcept(true)
         {
             on_error = fallback;
             m_status = state::initial;
         }
 
-        void error(const boost::system::error_code& err)
+        void error(const boost::system::error_code& err) noexcept(true)
         {
             if (on_connect)
             {
@@ -150,12 +160,12 @@ class transport : public channel, public std::enable_shared_from_this<transport>
             m_status = state::finished;
         }
 
-        bool valid(const packet& pack)
+        bool valid(const packet& pack) noexcept(true)
         {
             return pack.size() > packet::header_size && m_local != 0 && (m_remote == 0 || m_remote == pack.pin());
         }
 
-        void parse(const packet& pack)
+        void parse(const packet& pack) noexcept(true)
         {
             if (!valid(pack))
                 return;
@@ -236,7 +246,7 @@ class transport : public channel, public std::enable_shared_from_this<transport>
             }
         }
 
-        void imbue(packet& pack)
+        void imbue(packet& pack) noexcept(true)
         {
             pack.set<uint64_t>(0, 0);
             pack.set<uint16_t>(sizeof(uint64_t), htons(packet::packet_sign));
@@ -301,17 +311,17 @@ class transport : public channel, public std::enable_shared_from_this<transport>
             sect.stub();
         }
 
-        state status() const
+        state status() const noexcept(true)
         {
             return m_status;
         }
 
-        void shutdown(const callback& handler)
+        bool shutdown(const callback& handler) noexcept(true)
         {
             if (m_status == state::finished)
             {
                 m_io.post(boost::bind(handler, boost::system::error_code()));
-                return;
+                return false;
             }
 
             if (m_status != state::linked && m_status != state::tearing)
@@ -320,7 +330,7 @@ class transport : public channel, public std::enable_shared_from_this<transport>
                     boost::asio::error::in_progress : boost::asio::error::not_connected;
 
                 m_io.post(boost::bind(handler, error));
-                return;
+                return false;
             }
 
             auto now = boost::posix_time::microsec_clock::universal_time();
@@ -333,9 +343,11 @@ class transport : public channel, public std::enable_shared_from_this<transport>
                 m_status = state::shutting;
                 m_jobs.emplace(section::tear, now);
             }
+
+            return true;
         }
 
-        void connect(const callback& handler)
+        bool connect(const callback& handler) noexcept(true)
         {
             if (m_status != state::initial)
             {
@@ -344,7 +356,7 @@ class transport : public channel, public std::enable_shared_from_this<transport>
                         boost::asio::error::already_connected : boost::asio::error::no_permission;
 
                 m_io.post(boost::bind(handler, error));
-                return;
+                return false;
             }
 
             m_local = make_pin();
@@ -354,9 +366,11 @@ class transport : public channel, public std::enable_shared_from_this<transport>
             m_status = state::connecting;
 
             m_jobs.emplace(section::link, m_seen);
+
+            return true;
         }
 
-        void accept(const callback& handler)
+        bool accept(const callback& handler) noexcept(true)
         {
             if (m_status != state::initial)
             {
@@ -365,16 +379,17 @@ class transport : public channel, public std::enable_shared_from_this<transport>
                         boost::asio::error::already_connected : boost::asio::error::no_permission;
 
                 m_io.post(boost::bind(handler, error));
-                return;
+                return false;
             }
 
             m_local = make_pin();
             on_connect = handler;
 
             m_status = state::accepting;
+            return true;
         }
 
-        bool deffered() const
+        bool deffered() const noexcept(true)
         {
             return !m_jobs.empty();
         }
@@ -395,17 +410,17 @@ class transport : public channel, public std::enable_shared_from_this<transport>
 
     struct ostreamer
     {
-        ostreamer(boost::asio::io_context& io) 
+        ostreamer(boost::asio::io_context& io) noexcept(true)
             : m_io(io)
         {
         }
 
-        void init(const callback& fallback)
+        void init(const callback& fallback) noexcept(true)
         {
             on_error = fallback;
         }
 
-        void error(const boost::system::error_code& err)
+        void error(const boost::system::error_code& err) noexcept(true)
         {
             auto cursor = m_moves.empty() ? m_buffer.head() : m_moves.begin()->first;
 
@@ -428,7 +443,7 @@ class transport : public channel, public std::enable_shared_from_this<transport>
             m_buffer.clear();
         }
 
-        void parse(const packet& pack)
+        void parse(const packet& pack) noexcept(true)
         {
             auto sect = pack.body();
             auto type = sect.type();
@@ -462,7 +477,7 @@ class transport : public channel, public std::enable_shared_from_this<transport>
             }
         }
 
-        void imbue(packet& pack)
+        void imbue(packet& pack) noexcept(true)
         {
             auto now = boost::posix_time::microsec_clock::universal_time();
 
@@ -520,7 +535,7 @@ class transport : public channel, public std::enable_shared_from_this<transport>
             sect.stub();
         }
 
-        void append(const const_buffer& buffer, const io_callback& caller)
+        void append(const const_buffer& buffer, const io_callback& caller) noexcept(true)
         {
             auto tail = m_buffer.tail();
             if (m_buffer.add(buffer) == tail)
@@ -536,16 +551,23 @@ class transport : public channel, public std::enable_shared_from_this<transport>
             m_writers.emplace_back(tail, buffer.size(), caller);
         }
 
-        bool deffered() const
+        bool deffered() const noexcept(true)
         {
             return !m_moves.empty() || !m_acks.empty() || (m_buffer.available() && m_buffer.head() < m_range);
+        }
+
+        uint64_t writable() const noexcept(true)
+        {
+            return m_range > m_buffer.tail() 
+                ? std::min(m_range - m_buffer.tail(), send_buffer_size() - m_buffer.tail() + m_buffer.head())
+                : 0;
         }
 
     private:
 
         struct streambuf
         {
-            const_buffer pull(uint64_t max)
+            const_buffer pull(uint64_t max) noexcept(true)
             {
                 static const const_buffer zero;
 
@@ -564,7 +586,7 @@ class transport : public channel, public std::enable_shared_from_this<transport>
                 return m_data.front().pop_front(max);
             }
 
-            uint64_t add(const const_buffer& buf)
+            uint64_t add(const const_buffer& buf) noexcept(true)
             {
                 if (m_tail + buf.size() - m_head >= send_buffer_size())
                     return m_tail;
@@ -575,24 +597,24 @@ class transport : public channel, public std::enable_shared_from_this<transport>
                 return m_tail;
             }
 
-            void clear()
+            void clear() noexcept(true)
             {
                 m_data.clear();
                 m_head = 0;
                 m_tail = 0;
             }
 
-            uint64_t head() const
+            uint64_t head() const noexcept(true)
             {
                 return m_head;
             }
 
-            uint64_t tail() const
+            uint64_t tail() const noexcept(true)
             {
                 return m_tail;
             }
 
-            bool available() const
+            bool available() const noexcept(true)
             {
                 return !m_data.empty();
             }
@@ -610,7 +632,7 @@ class transport : public channel, public std::enable_shared_from_this<transport>
             uint64_t size;
             io_callback callback;
 
-            writer(uint64_t h, uint64_t s, const io_callback& c)
+            writer(uint64_t h, uint64_t s, const io_callback& c) noexcept(true)
                 : head(h)
                 , size(s)
                 , callback(c)
@@ -624,7 +646,7 @@ class transport : public channel, public std::enable_shared_from_this<transport>
             boost::posix_time::ptime time;
             uint8_t attempt;
 
-            flight(const const_buffer& s, const boost::posix_time::ptime& t)
+            flight(const const_buffer& s, const boost::posix_time::ptime& t) noexcept(true)
                 : data(s)
                 , time(t)
                 , attempt(1)
@@ -643,17 +665,17 @@ class transport : public channel, public std::enable_shared_from_this<transport>
 
     struct istreamer
     {
-        istreamer(boost::asio::io_context& io)
+        istreamer(boost::asio::io_context& io) noexcept(true)
             : m_io(io)
         {
         }
 
-        void init(const callback& fallback)
+        void init(const callback& fallback) noexcept(true)
         {
             on_error = fallback;
         }
 
-        void error(const boost::system::error_code& err)
+        void error(const boost::system::error_code& err) noexcept(true)
         {
             auto iter = m_readers.begin();
             while (iter != m_readers.end())
@@ -667,7 +689,7 @@ class transport : public channel, public std::enable_shared_from_this<transport>
             m_buffer.clear();
         }
 
-        void parse(const packet& pack)
+        void parse(const packet& pack) noexcept(true)
         {
             auto sect = pack.body();
             auto type = sect.type();
@@ -706,7 +728,7 @@ class transport : public channel, public std::enable_shared_from_this<transport>
             transmit();
         }
 
-        void imbue(packet& pack)
+        void imbue(packet& pack) noexcept(true)
         {
             section sect = pack.stub();
 
@@ -734,23 +756,34 @@ class transport : public channel, public std::enable_shared_from_this<transport>
             sect.stub();
         }
 
-        void append(const mutable_buffer& buf, const io_callback& caller)
+        void append(const mutable_buffer& buf, const io_callback& caller) noexcept(true)
         {
             m_readers.emplace_back(buf, caller);
-            m_edge.range += buf.size();
-            m_edge.time = boost::posix_time::min_date_time;
-
             transmit();
         }
 
-        bool deffered() const
+        bool deffered() const noexcept(true)
         {
             return !m_acks.empty() || m_edge.time != boost::posix_time::max_date_time;
         }
 
+        uint64_t readable() const noexcept(true)
+        {
+            uint64_t bytes = m_buffer.readable_bytes();
+
+            auto iter = m_readers.begin();
+            while (bytes > 0 && iter != m_readers.end())
+            {
+                bytes -= std::min(iter->buffer.size() - iter->read, bytes);
+                ++iter;
+            }
+
+            return bytes;
+        }
+
     private:
 
-        void transmit()
+        void transmit() noexcept(true)
         {
             while (m_buffer.available())
             {
@@ -767,6 +800,12 @@ class transport : public channel, public std::enable_shared_from_this<transport>
 
                 if (iter->buffer.size() == iter->read)
                 {
+                    if (iter->read > 0)
+                    {
+                        m_edge.range += iter->read;
+                        m_edge.time = boost::posix_time::min_date_time;
+                    }
+
                     m_io.post(boost::bind(iter->callback, boost::system::error_code(), iter->read));
                     m_readers.erase(iter);
                 }
@@ -775,7 +814,7 @@ class transport : public channel, public std::enable_shared_from_this<transport>
 
         struct streambuf
         {
-            const_buffer pull(uint64_t max)
+            const_buffer pull(uint64_t max) noexcept(true)
             {
                 static const const_buffer zero;
 
@@ -799,7 +838,7 @@ class transport : public channel, public std::enable_shared_from_this<transport>
                 return ret;
             }
 
-            bool map(uint64_t handle, const const_buffer& buffer)
+            bool map(uint64_t handle, const const_buffer& buffer) noexcept(true)
             {
                 if (handle >= m_tail && handle + buffer.size() - m_head > receive_buffer_size())
                     return false;
@@ -817,12 +856,12 @@ class transport : public channel, public std::enable_shared_from_this<transport>
                 return true;
             }
 
-            uint64_t head() const
+            uint64_t head() const noexcept(true)
             {
                 return m_head;
             }
 
-            uint64_t tail() const
+            uint64_t tail() const noexcept(true)
             {
                 return m_tail;
             }
@@ -833,9 +872,23 @@ class transport : public channel, public std::enable_shared_from_this<transport>
                 m_head = 0;
             }
 
-            bool available() const
+            bool available() const noexcept(true)
             {
                 return m_data.size() > 0 && m_data.begin()->first == m_head;
+            }
+
+            uint64_t readable_bytes() const noexcept(true)
+            {
+                uint64_t cursor = m_head;
+
+                auto iter = m_data.begin();
+                while (iter != m_data.end() && iter->first == cursor)
+                {
+                    cursor += iter->second.size();
+                    ++iter;
+                }
+
+                return cursor - m_head;
             }
 
         private:
@@ -851,7 +904,7 @@ class transport : public channel, public std::enable_shared_from_this<transport>
             mutable_buffer buffer;
             io_callback callback;
 
-            reader(const mutable_buffer& b, const io_callback& c)
+            reader(const mutable_buffer& b, const io_callback& c) noexcept(true)
                 : buffer(b)
                 , callback(c)
             {}
@@ -862,7 +915,10 @@ class transport : public channel, public std::enable_shared_from_this<transport>
             uint64_t range;
             boost::posix_time::ptime time;
 
-            edge_job() : range(0), time(boost::posix_time::max_date_time) {}
+            edge_job() noexcept(true) 
+                : range(receive_buffer_size())
+                , time(boost::posix_time::min_date_time)
+            {}
         };
 
         boost::asio::io_context& m_io;
@@ -875,7 +931,7 @@ class transport : public channel, public std::enable_shared_from_this<transport>
 
 protected:
 
-    void mistake(const boost::system::error_code& ec)
+    void mistake(const boost::system::error_code& ec) noexcept(true)
     {
         std::unique_lock<std::mutex> lock(m_mutex);
 
@@ -888,7 +944,7 @@ protected:
         m_timer.cancel(err);
     }
 
-    void feed(const mutable_buffer& buffer)
+    void feed(const mutable_buffer& buffer) noexcept(true)
     {
         std::unique_lock<std::mutex> lock(m_mutex);
 
@@ -899,15 +955,17 @@ protected:
 
         if (m_connector.valid(pack))
         {
-            if (m_connector.status() == state::linked)
+            auto status = m_connector.status();
+            if (status == state::linked || status == state::accepting || status == state::connecting)
             {
                 m_istreamer.parse(pack);
                 m_ostreamer.parse(pack);
             }
-            
+
             m_connector.parse(pack);
 
-            if (m_connector.status() == state::tearing || m_connector.status() == state::shutting)
+            status = m_connector.status();
+            if (status == state::tearing || status == state::shutting)
             {
                 m_istreamer.error(boost::asio::error::connection_aborted);
                 m_ostreamer.error(boost::asio::error::connection_aborted);
@@ -918,7 +976,7 @@ protected:
         }
     }
 
-    void consume()
+    void consume() noexcept(true)
     {
         std::unique_lock<std::mutex> lock(m_mutex);
 
@@ -950,7 +1008,7 @@ protected:
         });
     }
 
-    void produce()
+    void produce() noexcept(true)
     {
         std::unique_lock<std::mutex> lock(m_mutex);
 
@@ -967,9 +1025,10 @@ protected:
         std::weak_ptr<transport> weak = shared_from_this();
 
         packet pack(create_buffer(max_packet_size()));
-        
         m_connector.imbue(pack);
-        if (m_connector.status() == state::linked)
+
+        auto status = m_connector.status();
+        if (status == state::linked || status == state::accepting || status == state::connecting)
         {
             m_istreamer.imbue(pack);
             m_ostreamer.imbue(pack);
@@ -1013,9 +1072,29 @@ protected:
         }
     }
 
+    inline void run() noexcept(true)
+    {
+        std::weak_ptr<transport> weak = shared_from_this();
+        m_io.post([weak]()
+        {
+            auto ptr = weak.lock();
+            if (ptr)
+            {
+                ptr->produce();
+                ptr->consume();
+            }
+        });
+    }
+
+    inline void wake() noexcept(true)
+    {
+        boost::system::error_code err;
+        m_timer.cancel(err);
+    }
+
 public:
 
-    transport(boost::asio::io_context& io, const endpoint& bind, const endpoint& peer, uint64_t secret)
+    transport(boost::asio::io_context& io, const endpoint& bind, const endpoint& peer, uint64_t secret) noexcept(true)
         : m_io(io)
         , m_bind(bind)
         , m_peer(peer)
@@ -1062,16 +1141,6 @@ public:
         m_connector.init(on_error);
         m_istreamer.init(on_error);
         m_ostreamer.init(on_error);
-
-        m_io.post([weak]()
-        {
-            auto ptr = weak.lock();
-            if (ptr)
-            {
-                ptr->produce();
-                ptr->consume();
-            }
-        });
     }
 
     void close() noexcept(true) override
@@ -1083,24 +1152,29 @@ public:
     {
         std::unique_lock<std::mutex> lock(m_mutex);
 
-        m_connector.shutdown(handler);
-        boost::system::error_code err;
-        m_timer.cancel(err);
+        if (m_connector.shutdown(handler))
+        {
+            wake();
+        }
     }
 
     void connect(const callback& handler) noexcept(true) override
     {
         std::unique_lock<std::mutex> lock(m_mutex);
 
-        m_connector.connect(handler);
-        boost::system::error_code err;
-        m_timer.cancel(err);
+        if (m_connector.connect(handler))
+        {
+            run();
+        }
     }
 
     void accept(const callback& handler) noexcept(true) override
     {
         std::unique_lock<std::mutex> lock(m_mutex);
-        m_connector.accept(handler);
+        if (m_connector.accept(handler))
+        {
+            run();
+        }
     }
 
     void read(const mutable_buffer& buffer, const io_callback& handler) noexcept(true) override
@@ -1110,16 +1184,15 @@ public:
         auto status = m_connector.status();
         if (status != state::linked)
         {
-            boost::system::error_code ec = status == state::initial ? boost::asio::error::not_connected : 
-                status == state::connecting || status == state::accepting ? boost::asio::error::try_again : boost::asio::error::shut_down;
+            boost::system::error_code ec = status <= state::initial ? boost::asio::error::not_connected : 
+                status <= state::connecting ? boost::asio::error::try_again : boost::asio::error::shut_down;
 
             m_io.post(boost::bind(handler, ec, 0));
             return;
         }
 
         m_istreamer.append(buffer, handler);
-        boost::system::error_code err;
-        m_timer.cancel(err);
+        wake();
     }
 
     void write(const const_buffer& buffer, const io_callback& handler) noexcept(true) override
@@ -1129,16 +1202,27 @@ public:
         auto status = m_connector.status();
         if (status != state::linked)
         {
-            boost::system::error_code ec = status == state::initial ? boost::asio::error::not_connected : 
-                status == state::connecting || status == state::accepting ? boost::asio::error::try_again : boost::asio::error::shut_down;
+            boost::system::error_code ec = status <= state::initial ? boost::asio::error::not_connected : 
+                status <= state::connecting ? boost::asio::error::try_again : boost::asio::error::shut_down;
 
             m_io.post(boost::bind(handler, ec, 0));
             return;
         }
 
         m_ostreamer.append(buffer, handler);
-        boost::system::error_code err;
-        m_timer.cancel(err);
+        wake();
+    }
+
+    uint64_t writable() const noexcept(true) override
+    {
+        std::unique_lock<std::mutex> lock(m_mutex);
+        return m_ostreamer.writable();
+    }
+
+    uint64_t readable() const noexcept(true) override
+    {
+        std::unique_lock<std::mutex> lock(m_mutex);
+        return m_istreamer.readable();
     }
 
 private:
@@ -1152,7 +1236,7 @@ private:
     istreamer m_istreamer;
     ostreamer m_ostreamer;
     uint64_t m_secret;
-    std::mutex m_mutex;
+    mutable std::mutex m_mutex;
 };
 
 std::shared_ptr<channel> create_channel(boost::asio::io_context& io, const endpoint& bind, const endpoint& peer, uint64_t secret) noexcept(true)

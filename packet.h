@@ -41,33 +41,33 @@ struct section : public mutable_buffer
         edge = 10
     };
 
-    explicit section()
+    explicit section() noexcept(true)
     {
     }
 
-    explicit section(const mutable_buffer& buf) : mutable_buffer(buf)
+    explicit section(const mutable_buffer& buf) noexcept(true) : mutable_buffer(buf)
     {
     }
 
-    void stub()
+    void stub() noexcept(true)
     {
         std::memset(data(), 0, std::min(header_size, size()));
     }
 
-    void simple(uint16_t type)
+    void simple(uint16_t type) noexcept(true)
     {
         set<uint16_t>(0, htons(type));
         set<uint16_t>(sizeof(uint16_t), 0);
     }
 
-    void cursor(uint16_t type, uint64_t handle)
+    void cursor(uint16_t type, uint64_t handle) noexcept(true)
     {
         set<uint16_t>(0, htons(type));
         set<uint16_t>(sizeof(uint16_t), htons(sizeof(handle)));
         set<uint64_t>(header_size, htobe64(handle));
     }
 
-    void snippet(uint64_t handle, const const_buffer& data)
+    void snippet(uint64_t handle, const const_buffer& data) noexcept(true)
     {
         set<uint16_t>(0, htons(flag::move));
         set<uint16_t>(sizeof(uint16_t), htons(static_cast<uint16_t>(sizeof(handle) + data.size())));
@@ -75,22 +75,22 @@ struct section : public mutable_buffer
         fill(header_size + sizeof(handle), data.size(), data.data());
     }
 
-    uint16_t type() const
+    uint16_t type() const noexcept(true)
     {
         return size() >= header_size ? ntohs(get<uint16_t>(0)) : 0;
     }
 
-    uint16_t length() const
+    uint16_t length() const noexcept(true)
     {
         return size() >= header_size ? ntohs(get<uint16_t>(sizeof(uint16_t))) : 0;
     }
 
-    mutable_buffer value() const
+    mutable_buffer value() const noexcept(true)
     {
         return slice(std::min(header_size, size()), length());
     }
 
-    void advance()
+    void advance() noexcept(true)
     {
         crop(std::min(header_size, size()) + length());
     }
@@ -100,11 +100,11 @@ struct cursor : public mutable_buffer
 {
     static constexpr size_t handle_size = sizeof(uint64_t);
     
-    explicit cursor(const mutable_buffer& buf) : mutable_buffer(buf)
+    explicit cursor(const mutable_buffer& buf) noexcept(true) : mutable_buffer(buf)
     {
     }
 
-    uint64_t handle() const
+    uint64_t handle() const noexcept(true)
     {
         return be64toh(get<uint64_t>(0));
     }
@@ -114,16 +114,16 @@ struct snippet : public mutable_buffer
 {
     static constexpr uint16_t handle_size = sizeof(uint64_t);
 
-    explicit snippet(const mutable_buffer& buf) : mutable_buffer(buf)
+    explicit snippet(const mutable_buffer& buf) noexcept(true) : mutable_buffer(buf)
     {
     }
 
-    uint64_t handle() const
+    uint64_t handle() const noexcept(true)
     {
         return be64toh(get<uint64_t>(0));
     }
 
-    mutable_buffer fragment() const
+    mutable_buffer fragment() const noexcept(true)
     {
         return slice(handle_size, size() - handle_size);
     }
@@ -135,36 +135,36 @@ struct packet : public mutable_buffer
     static constexpr size_t packet_version = 0x0101;
     static constexpr size_t header_size = 16;
 
-    packet(const mutable_buffer& buf) : mutable_buffer(buf)
+    packet(const mutable_buffer& buf) noexcept(true) : mutable_buffer(buf)
     {
     }
 
-    uint64_t salt() const
+    uint64_t salt() const noexcept(true)
     {
         return size() > packet::header_size ? be64toh(get<uint64_t>(0)) : 0;
     }
 
-    uint16_t sign() const
+    uint16_t sign() const noexcept(true)
     {
         return size() > packet::header_size ? ntohs(get<uint16_t>(sizeof(uint64_t))) : 0;
     }
 
-    uint16_t version() const
+    uint16_t version() const noexcept(true)
     {
         return size() > packet::header_size ? ntohs(get<uint16_t>(sizeof(uint64_t) + sizeof(uint16_t))) : 0;
     }
 
-    uint32_t pin() const
+    uint32_t pin() const noexcept(true)
     {
         return size() > packet::header_size ? ntohl(get<uint32_t>(sizeof(uint64_t) + sizeof(uint16_t) * 2)) : 0;
     }
 
-    section body() const
+    section body() const noexcept(true)
     {
         return section(slice(std::min(size(), header_size), size() - std::min(size(), header_size)));
     }
 
-    section stub() const
+    section stub() const noexcept(true)
     {
         section sect(slice(std::min(size(), header_size), size() - std::min(size(), header_size)));
         while (sect.type() != 0)
@@ -174,7 +174,7 @@ struct packet : public mutable_buffer
         return sect;
     }
 
-    void trim()
+    void trim() noexcept(true)
     {
         truncate((uint8_t*)stub().data() - (uint8_t*)data());
     }
@@ -182,7 +182,7 @@ struct packet : public mutable_buffer
 
 struct dimmer
 {
-    static mutable_buffer invert(uint64_t secret, const mutable_buffer& buffer)
+    static mutable_buffer invert(uint64_t secret, const mutable_buffer& buffer) noexcept(true)
     {
         uint8_t* ptr = (uint8_t*)buffer.data();
         uint8_t* end = ptr + buffer.size();
@@ -225,7 +225,7 @@ struct dimmer
 
 private:
 
-    static inline uint64_t make_inverter(uint64_t secret, uint64_t salt, bool dim)
+    static inline uint64_t make_inverter(uint64_t secret, uint64_t salt, bool dim) noexcept(true)
     {
         uint64_t base = secret + salt;
         uint64_t shift = (base & 0x3F) | 0x01;
