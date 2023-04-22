@@ -1213,16 +1213,16 @@ public:
         wake();
     }
 
-    uint64_t writable() const noexcept(true) override
+    size_t writable() const noexcept(true) override
     {
         std::unique_lock<std::mutex> lock(m_mutex);
-        return m_ostreamer.writable();
+        return static_cast<size_t>(m_ostreamer.writable());
     }
 
-    uint64_t readable() const noexcept(true) override
+    size_t readable() const noexcept(true) override
     {
         std::unique_lock<std::mutex> lock(m_mutex);
-        return m_istreamer.readable();
+        return static_cast<size_t>(m_istreamer.readable());
     }
 
 private:

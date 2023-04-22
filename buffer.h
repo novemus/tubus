@@ -138,6 +138,11 @@ private:
     boost::shared_array<uint8_t> m_array;
 };
 
+inline const_buffer buffer(const void* data, size_t size) noexcept(true)
+{
+    return const_buffer(boost::asio::buffer(data, size));
+}
+
 struct mutable_buffer : public boost::asio::mutable_buffer
 {
     typedef mutable_buffer value_type;
@@ -282,6 +287,11 @@ private:
     boost::shared_array<uint8_t> m_array;
 
 };
+
+inline mutable_buffer buffer(void* data, size_t size) noexcept(true)
+{
+    return mutable_buffer(boost::asio::buffer(data, size));
+}
 
 class buffer_factory : public std::enable_shared_from_this<buffer_factory>
 {

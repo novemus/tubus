@@ -60,7 +60,7 @@ void post_io_method(channel_ptr channel, io_method method, limit_method limiter,
         return;
     }
 
-    auto part = boost::asio::buffer(buffer.data(), std::min((channel.get()->*limiter)(), buffer.size()));
+    auto part = tubus::buffer(buffer.data(), std::min((channel.get()->*limiter)(), buffer.size()));
     if (part.size() > 0 || result == 0)
     {
         (channel.get()->*method)(part, [channel, method, limiter, buffer, &io, callback, result](const boost::system::error_code& error, size_t size)

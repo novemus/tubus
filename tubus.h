@@ -34,8 +34,8 @@ struct TUBUS_CLASS_DECLSPEC channel
     virtual void shutdown(const callback& handle) noexcept(true) = 0;
     virtual void read(const mutable_buffer& buffer, const io_callback& handle) noexcept(true) = 0;
     virtual void write(const const_buffer& buffer, const io_callback& handle) noexcept(true) = 0;
-    virtual uint64_t writable() const noexcept(true) = 0;
-    virtual uint64_t readable() const noexcept(true) = 0;
+    virtual size_t writable() const noexcept(true) = 0;
+    virtual size_t readable() const noexcept(true) = 0;
 };
 
 typedef std::shared_ptr<channel> channel_ptr;

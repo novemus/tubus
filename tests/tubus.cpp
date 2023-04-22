@@ -10,7 +10,7 @@
 
 #include "../buffer.h"
 #include "../tubus.h"
-#include "executor.h"
+#include "common.h"
 #include <future>
 #include <functional>
 #include <boost/asio/ip/tcp.hpp>
@@ -176,59 +176,6 @@ public:
     }
 };
 
-class stream_source
-{
-    size_t m_read = 0;
-
-public:
-
-    tubus::const_buffer read_some()
-    {
-        tubus::mutable_buffer chank(1024 * 1024);
-
-        uint8_t* ptr = (uint8_t*)chank.data();
-        uint8_t* end = ptr + chank.size();
-
-        while (ptr < end)
-        {
-            *ptr = (m_read++) % 256;
-            ++ptr;
-        }
-
-        return chank;
-    }
-
-    size_t read() const
-    {
-        return m_read;
-    }
-};
-
-class stream_sink
-{
-    size_t m_written = 0;
-
-public:
-
-    void write_some(const tubus::const_buffer& chank)
-    {
-        const uint8_t* ptr = (const uint8_t*)chank.data();
-        const uint8_t* end = ptr + chank.size();
-
-        while (ptr < end)
-        {
-            if (*ptr != (m_written++) % 256)
-                throw std::runtime_error("bad stream");
-            ++ptr;
-        }
-    }
-
-    size_t written() const
-    {
-        return m_written;
-    }
-};
-
 BOOST_AUTO_TEST_SUITE(tubus_channel);
 
 BOOST_AUTO_TEST_CASE(core)
@@ -353,21 +300,21 @@ BOOST_AUTO_TEST_CASE(integrity)
     stream_source source;
     stream_sink sink;
 
-    BOOST_REQUIRE_NO_THROW(left.async_write(source.read_some()).get());
-    BOOST_REQUIRE_NO_THROW(left.async_write(source.read_some()).get());
-    BOOST_REQUIRE_NO_THROW(left.async_write(source.read_some()).get());
-    BOOST_REQUIRE_NO_THROW(left.async_write(source.read_some()).get());
+    BOOST_REQUIRE_NO_THROW(left.async_write(source.read_next()).get());
+    BOOST_REQUIRE_NO_THROW(left.async_write(source.read_next()).get());
+    BOOST_REQUIRE_NO_THROW(left.async_write(source.read_next()).get());
+    BOOST_REQUIRE_NO_THROW(left.async_write(source.read_next()).get());
 
-    tubus::mutable_buffer buffer(source.read() / 4);
+    tubus::mutable_buffer buffer(stream_source::chunk_size);
 
     BOOST_REQUIRE_NO_THROW(right.async_read(buffer).get());
-    BOOST_REQUIRE_NO_THROW(sink.write_some(buffer));
+    BOOST_REQUIRE_NO_THROW(sink.write_next(buffer));
     BOOST_REQUIRE_NO_THROW(right.async_read(buffer).get());
-    BOOST_REQUIRE_NO_THROW(sink.write_some(buffer));
+    BOOST_REQUIRE_NO_THROW(sink.write_next(buffer));
     BOOST_REQUIRE_NO_THROW(right.async_read(buffer).get());
-    BOOST_REQUIRE_NO_THROW(sink.write_some(buffer));
+    BOOST_REQUIRE_NO_THROW(sink.write_next(buffer));
     BOOST_REQUIRE_NO_THROW(right.async_read(buffer).get());
-    BOOST_REQUIRE_NO_THROW(sink.write_some(buffer));
+    BOOST_REQUIRE_NO_THROW(sink.write_next(buffer));
 
     BOOST_CHECK_EQUAL(source.read(), sink.written());
 
