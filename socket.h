@@ -12,11 +12,12 @@
 
 #include "tubus.h"
 #include <future>
+#include <type_traits>
 
 namespace tubus { namespace detail {
 
 template<class async_method, class handler>
-void schedule(channel_ptr channel, async_method method, boost::asio::io_context& io, handler&& callback) noexcept(true)
+void post_method(channel_ptr channel, async_method method, boost::asio::io_context& io, handler&& callback) noexcept(true)
 {
     if (!channel)
     {
@@ -28,7 +29,7 @@ void schedule(channel_ptr channel, async_method method, boost::asio::io_context&
 }
 
 template<class async_method>
-void execute(channel_ptr channel, async_method method, boost::system::error_code& ec) noexcept(true)
+void exec_method(channel_ptr channel, async_method method, boost::system::error_code& ec) noexcept(true)
 { 
     if (channel) 
     {
@@ -44,8 +45,46 @@ void execute(channel_ptr channel, async_method method, boost::system::error_code
     ec = boost::asio::error::broken_pipe; 
 }
 
-template<class tubus_buffer, class buffer_iterator, class async_io_method, class handler>
-void schedule_io(channel_ptr channel, async_io_method method, const buffer_iterator& begin, const buffer_iterator& end, boost::asio::io_context& io, handler&& callback, size_t result) noexcept(true)
+template<class io_method, class limit_method, class data_buffer, class handler>
+void post_io_method(channel_ptr channel, io_method method, limit_method limiter, const data_buffer& buffer, boost::asio::io_context& io, handler&& callback, size_t result = 0) noexcept(true)
+{
+    if (!channel)
+    {
+        io.post(std::bind(callback, boost::asio::error::broken_pipe, result));
+        return;
+    }
+
+    if (buffer.size() == 0)
+    {
+        io.post(std::bind(callback, boost::system::error_code(), result));
+        return;
+    }
+
+    auto part = boost::asio::buffer(buffer.data(), std::min((channel.get()->*limiter)(), buffer.size()));
+    if (part.size() > 0 || result == 0)
+    {
+        (channel.get()->*method)(part, [channel, method, limiter, buffer, &io, callback, result](const boost::system::error_code& error, size_t size)
+        {
+            if (error)
+            {
+                io.post(std::bind(callback, error, result + size));
+                return;
+            }
+
+            auto next = buffer;
+            next += size;
+
+            post_io_method(channel, method, limiter, next, io, callback, result + size);
+        });
+    }
+    else
+    {
+        io.post(std::bind(callback, boost::system::error_code(), result));
+    }
+}
+
+template<class io_method, class limit_method, class buffer_iterator, class handler>
+void post_io_method(channel_ptr channel, io_method method, limit_method limiter, buffer_iterator begin, buffer_iterator end, boost::asio::io_context& io, handler&& callback, size_t result = 0) noexcept(true)
 {
     if (!channel)
     {
@@ -59,7 +98,7 @@ void schedule_io(channel_ptr channel, async_io_method method, const buffer_itera
         return;
     }
 
-    (channel.get()->*method)(*begin, [&io, channel, method, begin, end, callback, result](const boost::system::error_code& error, size_t size)
+    post_io_method(channel, method, limiter, *begin, io, [channel, method, limiter, begin, end, &io, callback, result](const boost::system::error_code& error, size_t size)
     {
         if (error)
         {
@@ -67,12 +106,12 @@ void schedule_io(channel_ptr channel, async_io_method method, const buffer_itera
             return;
         }
 
-        schedule_io<tubus_buffer>(channel, method, std::next(begin, 1), end, io, callback, result + size);
-    });
+        post_io_method(channel, method, limiter, std::next(begin, 1), end, io, callback, result + size);
+    }, result);
 }
 
-template<class tubus_buffer, class buffer_iterator, class async_io_method>
-size_t execute_io(channel_ptr channel, async_io_method method, const buffer_iterator& begin, const buffer_iterator& end, boost::asio::io_context& io, boost::system::error_code& ec) noexcept(true)
+template<class io_method, class limit_method, class buffer_iterator>
+size_t exec_io_method(channel_ptr channel, io_method method, limit_method limiter, buffer_iterator begin, buffer_iterator end, boost::asio::io_context& io, boost::system::error_code& ec) noexcept(true)
 {
     if (!channel)
     {
@@ -83,7 +122,7 @@ size_t execute_io(channel_ptr channel, async_io_method method, const buffer_iter
     std::promise<size_t> promise;
     std::future<size_t> future = promise.get_future();
 
-    schedule_io<tubus_buffer>(channel, method, begin, end, io, [&](const boost::system::error_code& error, size_t size)
+    post_io_method(channel, method, limiter, begin, end, io, [&](const boost::system::error_code& error, size_t size)
     {
         ec = error;
         promise.set_value(size);
@@ -188,7 +227,7 @@ public:
     void connect() noexcept(false)
     {
         boost::system::error_code ec;
-        detail::execute(m_ctx->channel, &channel::connect, ec);
+        detail::exec_method(m_ctx->channel, &channel::connect, ec);
 
         if (ec)
             boost::asio::detail::throw_error(ec, "connect");
@@ -196,19 +235,19 @@ public:
 
     void connect(boost::system::error_code& ec) noexcept(true)
     {
-        detail::execute(m_ctx->channel, &channel::connect, ec);
+        detail::exec_method(m_ctx->channel, &channel::connect, ec);
     }
 
     template<class connect_handler>
     void async_connect(connect_handler&& callback) noexcept(true)
     {
-        detail::schedule(m_ctx->channel, &channel::connect, m_ctx->asio, callback);
+        detail::post_method(m_ctx->channel, &channel::connect, m_ctx->asio, callback);
     }
 
     void accept() noexcept(false)
     {
         boost::system::error_code ec;
-        detail::execute(m_ctx->channel, &channel::accept, ec);
+        detail::exec_method(m_ctx->channel, &channel::accept, ec);
 
         if (ec)
             boost::asio::detail::throw_error(ec, "accept");
@@ -216,19 +255,19 @@ public:
 
     void accept(boost::system::error_code& ec) noexcept(true)
     {
-        detail::execute(m_ctx->channel, &channel::accept, ec);
+        detail::exec_method(m_ctx->channel, &channel::accept, ec);
     }
 
     template<class accept_handler>
     void async_accept(accept_handler&& callback) noexcept(true)
     {
-        detail::schedule(m_ctx->channel, &channel::accept, m_ctx->asio, callback);
+        detail::post_method(m_ctx->channel, &channel::accept, m_ctx->asio, callback);
     }
 
     void shutdown() noexcept(false)
     {
         boost::system::error_code ec;
-        detail::execute(m_ctx->channel, &channel::shutdown, ec);
+        detail::exec_method(m_ctx->channel, &channel::shutdown, ec);
 
         if (ec)
             boost::asio::detail::throw_error(ec, "shutdown");
@@ -236,13 +275,13 @@ public:
 
     void shutdown(boost::system::error_code& ec) noexcept(true)
     {
-        detail::execute(m_ctx->channel, &channel::shutdown, ec);
+        detail::exec_method(m_ctx->channel, &channel::shutdown, ec);
     }
 
     template<class shutdown_handler>
     void async_shutdown(shutdown_handler&& callback) noexcept(true)
     {
-        detail::schedule(m_ctx->channel, &channel::shutdown, m_ctx->asio, callback);
+        detail::post_method(m_ctx->channel, &channel::shutdown, m_ctx->asio, callback);
     }
 
     socket& lowest_layer() noexcept(true)
@@ -254,7 +293,7 @@ public:
     size_t read_some(const mutable_buffers& buffer) noexcept(false)
     {
         boost::system::error_code ec;
-        auto size = detail::execute_io<mutable_buffer>(m_ctx->channel, &channel::read, buffer.begin(), buffer.end(), m_ctx->asio, ec);
+        auto size = detail::exec_io_method(m_ctx->channel, &channel::read, &channel::readable, buffer.begin(), buffer.end(), m_ctx->asio, ec);
 
         if (ec)
             boost::asio::detail::throw_error(ec, "read_some");
@@ -265,14 +304,14 @@ public:
     template<class mutable_buffers>
     size_t read_some(const mutable_buffers& buffer, boost::system::error_code& ec) noexcept(true)
     {
-        return detail::execute_io<mutable_buffer>(m_ctx->channel, &channel::read, buffer.begin(), buffer.end(), m_ctx->asio, ec);
+        return detail::exec_io_method(m_ctx->channel, &channel::read, &channel::readable, buffer.begin(), buffer.end(), m_ctx->asio, ec);
     }
 
     template<class const_buffers>
     size_t write_some(const const_buffers& buffer) noexcept(false)
     {
         boost::system::error_code ec;
-        auto size = detail::execute_io<const_buffer>(m_ctx->channel, &channel::write, buffer.begin(), buffer.end(), m_ctx->asio, ec);
+        auto size = detail::exec_io_method(m_ctx->channel, &channel::write, &channel::writable, buffer.begin(), buffer.end(), m_ctx->asio, ec);
 
         if (ec)
             boost::asio::detail::throw_error(ec, "write_some");
@@ -283,19 +322,19 @@ public:
     template<class const_buffers>
     size_t write_some(const const_buffers& buffer, boost::system::error_code& ec) noexcept(true)
     {
-        return detail::execute_io<const_buffer>(m_ctx->channel, &channel::write, buffer.begin(), buffer.end(), m_ctx->asio, ec);
+        return detail::exec_io_method(m_ctx->channel, &channel::write, &channel::writable, buffer.begin(), buffer.end(), m_ctx->asio, ec);
     }
 
     template<class mutable_buffers, class read_handler>
     void async_read_some(const mutable_buffers& buffer, read_handler&& callback) noexcept(true)
     {
-        detail::schedule_io<mutable_buffer>(m_ctx->channel, &channel::read, buffer.begin(), buffer.end(), m_ctx->asio, callback, 0);
+        detail::post_io_method(m_ctx->channel, &channel::read, &channel::readable, buffer.begin(), buffer.end(), m_ctx->asio, callback);
     }
 
     template<class const_buffers, class write_handler>
     void async_write_some(const const_buffers& buffer, write_handler&& callback) noexcept(true)
     {
-        detail::schedule_io<const_buffer>(m_ctx->channel, &channel::write, buffer.begin(), buffer.end(), m_ctx->asio, callback, 0);
+        detail::post_io_method(m_ctx->channel, &channel::write, &channel::writable, buffer.begin(), buffer.end(), m_ctx->asio, callback);
     }
 
     executor_type get_executor() const noexcept(true)

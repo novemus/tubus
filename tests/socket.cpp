@@ -41,7 +41,10 @@ BOOST_AUTO_TEST_CASE(peer_to_peer)
     left.async_accept([&](const boost::system::error_code& error)
     {
         BOOST_CHECK_EQUAL(error, NO_ERROR);
-        BOOST_CHECK_NO_THROW(BOOST_CHECK_EQUAL(rb.size(), boost::asio::read(left, rb)));
+        
+        size_t size = 0;
+        BOOST_CHECK_NO_THROW(size = boost::asio::read(left, rb));
+        BOOST_CHECK_EQUAL(rb.size(), size);
 
         boost::system::error_code ec;
         BOOST_CHECK_EQUAL(rb.size(), boost::asio::read(left, rb, ec));
@@ -60,7 +63,10 @@ BOOST_AUTO_TEST_CASE(peer_to_peer)
     right.connect(ec);
 
     BOOST_CHECK_EQUAL(ec, NO_ERROR);
-    BOOST_CHECK_NO_THROW(BOOST_CHECK_EQUAL(wb.size(), boost::asio::write(right, wb)));
+
+    size_t size = 0;
+    BOOST_CHECK_NO_THROW(size = boost::asio::write(right, wb));
+    BOOST_CHECK_EQUAL(wb.size(), size);
 
     BOOST_CHECK_EQUAL(wb.size(), boost::asio::write(right, wb, ec));
     BOOST_CHECK_EQUAL(ec, NO_ERROR);
