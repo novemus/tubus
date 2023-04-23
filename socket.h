@@ -290,10 +290,18 @@ public:
     }
 
     template<class mutable_buffers>
-    size_t read_some(const mutable_buffers& buffer) noexcept(false)
+    size_t read_some(const mutable_buffers& buffers) noexcept(false)
     {
         boost::system::error_code ec;
-        auto size = detail::exec_io_method(m_ctx->channel, &channel::read, &channel::readable, buffer.begin(), buffer.end(), m_ctx->asio, ec);
+        auto size = detail::exec_io_method(
+            m_ctx->channel,
+            &channel::read,
+            &channel::readable,
+            boost::asio::buffer_sequence_begin(buffers),
+            boost::asio::buffer_sequence_end(buffers),
+            m_ctx->asio,
+            ec
+            );
 
         if (ec)
             boost::asio::detail::throw_error(ec, "read_some");
@@ -302,16 +310,32 @@ public:
     }
 
     template<class mutable_buffers>
-    size_t read_some(const mutable_buffers& buffer, boost::system::error_code& ec) noexcept(true)
+    size_t read_some(const mutable_buffers& buffers, boost::system::error_code& ec) noexcept(true)
     {
-        return detail::exec_io_method(m_ctx->channel, &channel::read, &channel::readable, buffer.begin(), buffer.end(), m_ctx->asio, ec);
+        return detail::exec_io_method(
+            m_ctx->channel,
+            &channel::read,
+            &channel::readable,
+            boost::asio::buffer_sequence_begin(buffers),
+            boost::asio::buffer_sequence_end(buffers),
+            m_ctx->asio,
+            ec
+            );
     }
 
     template<class const_buffers>
-    size_t write_some(const const_buffers& buffer) noexcept(false)
+    size_t write_some(const const_buffers& buffers) noexcept(false)
     {
         boost::system::error_code ec;
-        auto size = detail::exec_io_method(m_ctx->channel, &channel::write, &channel::writable, buffer.begin(), buffer.end(), m_ctx->asio, ec);
+        auto size = detail::exec_io_method(
+            m_ctx->channel,
+            &channel::write,
+            &channel::writable,
+            boost::asio::buffer_sequence_begin(buffers),
+            boost::asio::buffer_sequence_end(buffers),
+            m_ctx->asio,
+            ec
+            );
 
         if (ec)
             boost::asio::detail::throw_error(ec, "write_some");
@@ -320,21 +344,45 @@ public:
     }
 
     template<class const_buffers>
-    size_t write_some(const const_buffers& buffer, boost::system::error_code& ec) noexcept(true)
+    size_t write_some(const const_buffers& buffers, boost::system::error_code& ec) noexcept(true)
     {
-        return detail::exec_io_method(m_ctx->channel, &channel::write, &channel::writable, buffer.begin(), buffer.end(), m_ctx->asio, ec);
+        return detail::exec_io_method(
+            m_ctx->channel,
+            &channel::write,
+            &channel::writable,
+            boost::asio::buffer_sequence_begin(buffers),
+            boost::asio::buffer_sequence_end(buffers),
+            m_ctx->asio,
+            ec
+            );
     }
 
     template<class mutable_buffers, class read_handler>
-    void async_read_some(const mutable_buffers& buffer, read_handler&& callback) noexcept(true)
+    void async_read_some(const mutable_buffers& buffers, read_handler&& callback) noexcept(true)
     {
-        detail::post_io_method(m_ctx->channel, &channel::read, &channel::readable, buffer.begin(), buffer.end(), m_ctx->asio, callback);
+        detail::post_io_method(
+            m_ctx->channel,
+            &channel::read,
+            &channel::readable,
+            boost::asio::buffer_sequence_begin(buffers),
+            boost::asio::buffer_sequence_end(buffers),
+            m_ctx->asio,
+            callback
+            );
     }
 
     template<class const_buffers, class write_handler>
-    void async_write_some(const const_buffers& buffer, write_handler&& callback) noexcept(true)
+    void async_write_some(const const_buffers& buffers, write_handler&& callback) noexcept(true)
     {
-        detail::post_io_method(m_ctx->channel, &channel::write, &channel::writable, buffer.begin(), buffer.end(), m_ctx->asio, callback);
+        detail::post_io_method(
+            m_ctx->channel,
+            &channel::write,
+            &channel::writable,
+            boost::asio::buffer_sequence_begin(buffers),
+            boost::asio::buffer_sequence_end(buffers),
+            m_ctx->asio,
+            callback
+            );
     }
 
     executor_type get_executor() const noexcept(true)

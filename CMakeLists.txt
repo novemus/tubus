@@ -28,8 +28,16 @@ message(status "** Boost Libraries: ${Boost_LIBRARIES}")
 include_directories(${Boost_INCLUDE_DIRS})
 link_directories(${Boost_LIBRARY_DIRS})
 
+find_package(OpenSSL REQUIRED)
+
+message(status "** OpenSSL Version: ${OPENSSL_VERSION}")
+message(status "** OpenSSL Include Dir: ${OPENSSL_INCLUDE_DIR}")
+message(status "** OpenSSL Libraries: ${OPENSSL_LIBRARIES}")
+
 add_library(${PROJECT_NAME} ${SOURCES})
 add_executable(${TESTS_NAME} ${TESTS_SOURCES})
+
+target_link_libraries(${TESTS_NAME} OpenSSL::Crypto OpenSSL::SSL)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -Wall")
