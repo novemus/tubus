@@ -162,7 +162,10 @@ class transport : public channel, public std::enable_shared_from_this<transport>
 
         bool valid(const packet& pack) noexcept(true)
         {
-            return pack.size() > packet::header_size && m_local != 0 && (m_remote == 0 || m_remote == pack.pin());
+            return pack.size() > packet::header_size 
+                && pack.sign() == packet::packet_sign
+                && pack.version() == packet::packet_version
+                && m_local != 0 && (m_remote == 0 || m_remote == pack.pin());
         }
 
         void parse(const packet& pack) noexcept(true)

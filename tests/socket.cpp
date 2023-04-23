@@ -10,6 +10,7 @@
 
 #include "../buffer.h"
 #include "../socket.h"
+#include "../acceptor.h"
 #include "common.h"
 #include <boost/asio/ssl.hpp>
 #include <boost/test/unit_test.hpp>
@@ -111,8 +112,8 @@ BOOST_AUTO_TEST_CASE(core)
 
 BOOST_AUTO_TEST_CASE(ssl)
 {
-    tubus::endpoint ce(boost::asio::ip::address::from_string("127.0.0.1"), 3001);
-    tubus::endpoint se(boost::asio::ip::address::from_string("127.0.0.1"), 3002);
+    tubus::endpoint se(boost::asio::ip::address::from_string("127.0.0.1"), 3001);
+    tubus::endpoint ce(boost::asio::ip::address::from_string("127.0.0.1"), 3002);
 
     boost::asio::ssl::context srv(boost::asio::ssl::context::sslv23);
     srv.set_options(boost::asio::ssl::context::default_workarounds | boost::asio::ssl::context::sslv23_server);
@@ -215,6 +216,49 @@ BOOST_AUTO_TEST_CASE(ssl)
 
     client.lowest_layer().shutdown(ec);
     BOOST_CHECK_EQUAL(ec, NO_ERROR);
+}
+
+BOOST_AUTO_TEST_CASE(acceptor)
+{
+    tubus::endpoint se(boost::asio::ip::address::from_string("127.0.0.1"), 3000);
+    tubus::endpoint c1(boost::asio::ip::address::from_string("127.0.0.1"), 3001);
+    tubus::endpoint c2(boost::asio::ip::address::from_string("127.0.0.1"), 3002);
+
+    tubus::acceptor server(g_reactor.io);
+    BOOST_REQUIRE_NO_THROW(server.bind(se, 0));
+
+    std::promise<void> ap1;
+    std::future<void> af1 = ap1.get_future();
+
+    tubus::socket peer1(g_reactor.io);
+    server.async_accept(peer1, [&](const boost::system::error_code& code)
+    {
+        BOOST_CHECK_EQUAL(code, NO_ERROR);
+        BOOST_CHECK_EQUAL(peer1.remote_endpoint(), c1);
+        ap1.set_value();
+    });
+
+    tubus::socket client1(g_reactor.io);
+    BOOST_REQUIRE_NO_THROW(client1.open(c1, se, 0));
+    BOOST_REQUIRE_NO_THROW(client1.connect());
+
+    std::promise<void> ap2;
+    std::future<void> af2 = ap2.get_future();
+
+    tubus::socket peer2(g_reactor.io);
+    server.async_accept(peer2, [&](const boost::system::error_code& code)
+    {
+        BOOST_CHECK_EQUAL(code, NO_ERROR);
+        BOOST_CHECK_EQUAL(peer2.remote_endpoint(), c2);
+        ap2.set_value();
+    });
+
+    tubus::socket client2(g_reactor.io);
+    BOOST_REQUIRE_NO_THROW(client2.open(c2, se, 0));
+    BOOST_REQUIRE_NO_THROW(client2.connect());
+
+    BOOST_CHECK_NO_THROW(af1.get());
+    BOOST_CHECK_NO_THROW(af2.get());
 }
 
 BOOST_AUTO_TEST_SUITE_END();

@@ -12,7 +12,6 @@
 
 #include "tubus.h"
 #include <future>
-#include <type_traits>
 
 namespace tubus { namespace detail {
 
@@ -137,33 +136,10 @@ typedef boost::asio::ip::udp::endpoint endpoint;
 
 class socket
 {
-    struct context
-    {
-        boost::asio::io_context& asio;
-        endpoint local;
-        endpoint remote;
-        channel_ptr channel;
-
-        context(boost::asio::io_context& io) : asio(io)
-        {
-        }
-
-        context(context&& other) 
-            : asio(other.asio)
-            , local(other.local)
-            , remote(other.remote)
-            , channel(other.channel)
-        {
-            other.local = endpoint();
-            other.remote = endpoint();
-            other.channel.reset();
-        }
-
-        context(const context&) = delete;
-        context& operator=(const context&) = delete;
-    };
-
-    std::unique_ptr<context> m_ctx;
+    boost::asio::io_context& m_asio;
+    boost::asio::ip::udp::endpoint m_local;
+    boost::asio::ip::udp::endpoint m_remote;
+    channel_ptr m_channel;
 
     socket(const socket&) = delete;
     socket& operator=(const socket&) = delete;
@@ -174,29 +150,29 @@ public:
     typedef boost::asio::io_context::executor_type executor_type;
 
     socket(boost::asio::io_context& io) noexcept(true) 
-        : m_ctx(new context(io))
+        : m_asio(io)
     {
     }
 
-    socket(socket&& other) noexcept(true)
-        : m_ctx(new context(std::move(*(other.m_ctx))))
+    socket(boost::asio::io_context& io, const endpoint& le, const endpoint& re, uint64_t secret) noexcept(false) 
+        : socket(io)
     {
+        open(le, re, secret);
     }
 
-    socket& operator=(socket&& other) noexcept(true)
+    bool is_open() const noexcept(false) 
     {
-        m_ctx = std::make_unique<context>(std::move(*(other.m_ctx)));
-        return *this;
+        return !!m_channel;
     }
 
     void open(const endpoint& le, const endpoint& re, uint64_t secret) noexcept(false)
     {
-        if (m_ctx->channel == 0)
+        if (!m_channel)
         {
-            m_ctx->local = le;
-            m_ctx->remote = re;
-            m_ctx->channel = create_channel(m_ctx->asio, le, re, secret);
-            m_ctx->channel->open();
+            m_local = le;
+            m_remote = re;
+            m_channel = create_channel(m_asio, le, re, secret);
+            m_channel->open();
             return;
         }
 
@@ -217,17 +193,17 @@ public:
 
     void close() noexcept(true)
     {
-        if (m_ctx->channel)
+        if (m_channel)
         {
-            m_ctx->channel->close();
-            m_ctx->channel.reset();
+            m_channel->close();
+            m_channel.reset();
         }
     }
 
     void connect() noexcept(false)
     {
         boost::system::error_code ec;
-        detail::exec_method(m_ctx->channel, &channel::connect, ec);
+        detail::exec_method(m_channel, &channel::connect, ec);
 
         if (ec)
             boost::asio::detail::throw_error(ec, "connect");
@@ -235,19 +211,19 @@ public:
 
     void connect(boost::system::error_code& ec) noexcept(true)
     {
-        detail::exec_method(m_ctx->channel, &channel::connect, ec);
+        detail::exec_method(m_channel, &channel::connect, ec);
     }
 
     template<class connect_handler>
     void async_connect(connect_handler&& callback) noexcept(true)
     {
-        detail::post_method(m_ctx->channel, &channel::connect, m_ctx->asio, callback);
+        detail::post_method(m_channel, &channel::connect, m_asio, callback);
     }
 
     void accept() noexcept(false)
     {
         boost::system::error_code ec;
-        detail::exec_method(m_ctx->channel, &channel::accept, ec);
+        detail::exec_method(m_channel, &channel::accept, ec);
 
         if (ec)
             boost::asio::detail::throw_error(ec, "accept");
@@ -255,19 +231,19 @@ public:
 
     void accept(boost::system::error_code& ec) noexcept(true)
     {
-        detail::exec_method(m_ctx->channel, &channel::accept, ec);
+        detail::exec_method(m_channel, &channel::accept, ec);
     }
 
     template<class accept_handler>
     void async_accept(accept_handler&& callback) noexcept(true)
     {
-        detail::post_method(m_ctx->channel, &channel::accept, m_ctx->asio, callback);
+        detail::post_method(m_channel, &channel::accept, m_asio, callback);
     }
 
     void shutdown() noexcept(false)
     {
         boost::system::error_code ec;
-        detail::exec_method(m_ctx->channel, &channel::shutdown, ec);
+        detail::exec_method(m_channel, &channel::shutdown, ec);
 
         if (ec)
             boost::asio::detail::throw_error(ec, "shutdown");
@@ -275,13 +251,13 @@ public:
 
     void shutdown(boost::system::error_code& ec) noexcept(true)
     {
-        detail::exec_method(m_ctx->channel, &channel::shutdown, ec);
+        detail::exec_method(m_channel, &channel::shutdown, ec);
     }
 
     template<class shutdown_handler>
     void async_shutdown(shutdown_handler&& callback) noexcept(true)
     {
-        detail::post_method(m_ctx->channel, &channel::shutdown, m_ctx->asio, callback);
+        detail::post_method(m_channel, &channel::shutdown, m_asio, callback);
     }
 
     socket& lowest_layer() noexcept(true)
@@ -294,12 +270,12 @@ public:
     {
         boost::system::error_code ec;
         auto size = detail::exec_io_method(
-            m_ctx->channel,
+            m_channel,
             &channel::read,
             &channel::readable,
             boost::asio::buffer_sequence_begin(buffers),
             boost::asio::buffer_sequence_end(buffers),
-            m_ctx->asio,
+            m_asio,
             ec
             );
 
@@ -313,12 +289,12 @@ public:
     size_t read_some(const mutable_buffers& buffers, boost::system::error_code& ec) noexcept(true)
     {
         return detail::exec_io_method(
-            m_ctx->channel,
+            m_channel,
             &channel::read,
             &channel::readable,
             boost::asio::buffer_sequence_begin(buffers),
             boost::asio::buffer_sequence_end(buffers),
-            m_ctx->asio,
+            m_asio,
             ec
             );
     }
@@ -328,12 +304,12 @@ public:
     {
         boost::system::error_code ec;
         auto size = detail::exec_io_method(
-            m_ctx->channel,
+            m_channel,
             &channel::write,
             &channel::writable,
             boost::asio::buffer_sequence_begin(buffers),
             boost::asio::buffer_sequence_end(buffers),
-            m_ctx->asio,
+            m_asio,
             ec
             );
 
@@ -347,12 +323,12 @@ public:
     size_t write_some(const const_buffers& buffers, boost::system::error_code& ec) noexcept(true)
     {
         return detail::exec_io_method(
-            m_ctx->channel,
+            m_channel,
             &channel::write,
             &channel::writable,
             boost::asio::buffer_sequence_begin(buffers),
             boost::asio::buffer_sequence_end(buffers),
-            m_ctx->asio,
+            m_asio,
             ec
             );
     }
@@ -361,12 +337,12 @@ public:
     void async_read_some(const mutable_buffers& buffers, read_handler&& callback) noexcept(true)
     {
         detail::post_io_method(
-            m_ctx->channel,
+            m_channel,
             &channel::read,
             &channel::readable,
             boost::asio::buffer_sequence_begin(buffers),
             boost::asio::buffer_sequence_end(buffers),
-            m_ctx->asio,
+            m_asio,
             callback
             );
     }
@@ -375,29 +351,29 @@ public:
     void async_write_some(const const_buffers& buffers, write_handler&& callback) noexcept(true)
     {
         detail::post_io_method(
-            m_ctx->channel,
+            m_channel,
             &channel::write,
             &channel::writable,
             boost::asio::buffer_sequence_begin(buffers),
             boost::asio::buffer_sequence_end(buffers),
-            m_ctx->asio,
+            m_asio,
             callback
             );
     }
 
     executor_type get_executor() const noexcept(true)
     {
-        return m_ctx->asio.get_executor();
+        return m_asio.get_executor();
     }
 
     endpoint local_endpoint() const noexcept(true)
     {
-        return m_ctx->local;
+        return m_local;
     }
 
     endpoint remote_endpoint() const noexcept(true)
     {
-        return m_ctx->remote;
+        return m_remote;
     }
 };
 
