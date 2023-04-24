@@ -388,7 +388,9 @@ class transport : public channel, public std::enable_shared_from_this<transport>
             m_local = make_pin();
             on_connect = handler;
 
+            m_seen = boost::posix_time::microsec_clock::universal_time();
             m_status = state::accepting;
+
             return true;
         }
 
@@ -1097,10 +1099,8 @@ protected:
 
 public:
 
-    transport(boost::asio::io_context& io, const endpoint& bind, const endpoint& peer, uint64_t secret) noexcept(true)
+    transport(boost::asio::io_context& io, uint64_t secret) noexcept(true)
         : m_io(io)
-        , m_bind(bind)
-        , m_peer(peer)
         , m_socket(io)
         , m_timer(io)
         , m_connector(io)
@@ -1115,23 +1115,24 @@ public:
         close();
     }
 
-    void open() noexcept(false) override
+    void bind(const endpoint& local) noexcept(false) override
     {
         std::unique_lock<std::mutex> lock(m_mutex);
 
         static const size_t SOCKET_BUFFER_SIZE = 1048576;
 
-        m_socket.open(m_bind.protocol());
+        if (m_connector.status() != state::neither)
+            boost::asio::detail::throw_error(boost::asio::error::no_permission, "bind");
+
+        m_socket.open(local.protocol());
 
         m_socket.set_option(boost::asio::socket_base::send_buffer_size(SOCKET_BUFFER_SIZE));
         m_socket.set_option(boost::asio::socket_base::receive_buffer_size(SOCKET_BUFFER_SIZE));
         m_socket.set_option(boost::asio::socket_base::reuse_address(true));
-        
-        m_socket.bind(m_bind);
-        m_socket.connect(m_peer);
+
+        m_socket.bind(local);
 
         std::weak_ptr<transport> weak = shared_from_this();
-        
         auto on_error = [weak](const boost::system::error_code& error)
         {
             auto ptr = weak.lock();
@@ -1161,9 +1162,24 @@ public:
         }
     }
 
-    void connect(const callback& handler) noexcept(true) override
+    void connect(const endpoint& remote, const callback& handler) noexcept(true) override
     {
         std::unique_lock<std::mutex> lock(m_mutex);
+
+        if (m_connector.status() != state::initial)
+        {
+            m_io.post(boost::bind(handler, boost::asio::error::no_permission));
+            return;
+        }
+
+        boost::system::error_code ec;
+        m_socket.connect(remote, ec);
+
+        if (ec)
+        {
+            m_io.post(boost::bind(handler, ec));
+            return;
+        }
 
         if (m_connector.connect(handler))
         {
@@ -1171,10 +1187,26 @@ public:
         }
     }
 
-    void accept(const callback& handler) noexcept(true) override
+    void accept(const endpoint& remote, const callback& handler) noexcept(true) override
     {
         std::unique_lock<std::mutex> lock(m_mutex);
-        if (m_connector.accept(handler))
+                
+        if (m_connector.status() != state::initial)
+        {
+            m_io.post(boost::bind(handler, boost::asio::error::no_permission));
+            return;
+        }
+
+        boost::system::error_code ec;
+        m_socket.connect(remote, ec);
+
+        if (ec)
+        {
+            m_io.post(boost::bind(handler, ec));
+            return;
+        }
+
+        if (m_connector.accept(std::move(handler)))
         {
             run();
         }
@@ -1231,8 +1263,6 @@ public:
 private:
 
     boost::asio::io_context& m_io;
-    boost::asio::ip::udp::endpoint m_bind;
-    boost::asio::ip::udp::endpoint m_peer;
     boost::asio::ip::udp::socket m_socket;
     boost::asio::deadline_timer m_timer;
     connector m_connector;
@@ -1242,9 +1272,9 @@ private:
     mutable std::mutex m_mutex;
 };
 
-std::shared_ptr<channel> create_channel(boost::asio::io_context& io, const endpoint& bind, const endpoint& peer, uint64_t secret) noexcept(true)
+std::shared_ptr<channel> create_channel(boost::asio::io_context& io, uint64_t secret) noexcept(true)
 {
-    return std::make_shared<transport>(io, bind, peer, secret);
+    return std::make_shared<transport>(io, secret);
 }
 
 }

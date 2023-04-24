@@ -32,16 +32,17 @@ public:
 
     typedef boost::asio::io_context::executor_type executor_type;
 
-    acceptor(boost::asio::io_context& io) noexcept(true) 
+    acceptor(boost::asio::io_context& io, uint64_t secret = 0) noexcept(true) 
         : m_asio(io)
         , m_socket(io)
+        , m_secret(secret)
     {
     }
 
-    acceptor(boost::asio::io_context& io, const endpoint& local, uint64_t secret) noexcept(false) 
-        : acceptor(io)
+    acceptor(boost::asio::io_context& io, const endpoint& local, uint64_t secret = 0) noexcept(false) 
+        : acceptor(io, secret)
     {
-        bind(local, secret);
+        bind(local);
     }
 
     executor_type get_executor() const noexcept(true)
@@ -49,7 +50,7 @@ public:
         return m_asio.get_executor();
     }
 
-    void bind(const endpoint& local, uint64_t secret) noexcept(false)
+    void bind(const endpoint& local) noexcept(false)
     {
         if (!m_socket.is_open())
         {
@@ -57,18 +58,17 @@ public:
             m_socket.set_option(boost::asio::socket_base::reuse_address(true));
             m_socket.bind(local);
             m_local = local;
-            m_secret = secret;
             return;
         }
 
         boost::asio::detail::throw_error(boost::asio::error::operation_not_supported, "bind");
     }
 
-    void bind(const endpoint& local, uint64_t secret, boost::system::error_code& ec) noexcept(true)
+    void bind(const endpoint& local, boost::system::error_code& ec) noexcept(true)
     {
         try
         {
-            bind(local, secret);
+            bind(local);
         }
         catch( const boost::system::system_error& ex)
         {
@@ -198,13 +198,13 @@ public:
 
     void accept(socket& peer, boost::system::error_code& ec) noexcept(true)
     {
-        endpoint remote;
-        m_socket.receive_from(mutable_buffer(), remote, 0, ec);
+        peer.bind(m_local, ec);
 
         if (ec)
             return;
 
-        peer.open(m_local, remote, m_secret, ec);
+        endpoint remote;
+        m_socket.receive_from(mutable_buffer(), remote, 0, ec);
 
         if (ec)
             return;
@@ -212,7 +212,7 @@ public:
         std::promise<boost::system::error_code> promise;
         std::future<boost::system::error_code> future = promise.get_future();
 
-        peer.async_accept([&promise](const boost::system::error_code& error)
+        peer.async_accept(remote, [&promise](const boost::system::error_code& error)
         {
             promise.set_value(error);
         });
@@ -223,6 +223,15 @@ public:
     template<class accept_handler>
     void async_accept(socket& peer, accept_handler&& callback) noexcept(true)
     {
+        boost::system::error_code ec;
+        peer.bind(m_local, ec);
+
+        if (ec)
+        {
+            m_asio.post(std::bind(callback, ec));
+            return;
+        }
+
         auto remote = std::make_shared<endpoint>();
         m_socket.async_receive_from(mutable_buffer(), *remote, [&peer, local = m_local, remote, secret = m_secret, callback](const boost::system::error_code& error, size_t size)
         {

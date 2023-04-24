@@ -27,19 +27,19 @@ typedef std::function<void(const boost::system::error_code&, size_t)> io_callbac
 struct TUBUS_CLASS_DECLSPEC channel
 {
     virtual ~channel() noexcept(true) {}
-    virtual void open() noexcept(false) = 0;
     virtual void close() noexcept(true) = 0;
-    virtual void connect(const callback& handle) noexcept(true) = 0;
-    virtual void accept(const callback& handle) noexcept(true) = 0;
-    virtual void shutdown(const callback& handle) noexcept(true) = 0;
+    virtual void bind(const endpoint& local) noexcept(false) = 0;
+    virtual void connect(const endpoint& remote, const callback& handle) noexcept(true) = 0;
+    virtual void accept(const endpoint& remote, const callback& handle) noexcept(true) = 0;
     virtual void read(const mutable_buffer& buffer, const io_callback& handle) noexcept(true) = 0;
     virtual void write(const const_buffer& buffer, const io_callback& handle) noexcept(true) = 0;
+    virtual void shutdown(const callback& handle) noexcept(true) = 0;
     virtual size_t writable() const noexcept(true) = 0;
     virtual size_t readable() const noexcept(true) = 0;
 };
 
 typedef std::shared_ptr<channel> channel_ptr;
 
-TUBUS_DECLSPEC channel_ptr create_channel(boost::asio::io_context& io, const endpoint& bind, const endpoint& peer, uint64_t secret = 0) noexcept(true);
+TUBUS_DECLSPEC channel_ptr create_channel(boost::asio::io_context& io, uint64_t secret = 0) noexcept(true);
 
 }

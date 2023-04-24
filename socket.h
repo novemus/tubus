@@ -15,35 +15,6 @@
 
 namespace tubus { namespace detail {
 
-template<class async_method, class handler>
-void post_method(channel_ptr channel, async_method method, boost::asio::io_context& io, handler&& callback) noexcept(true)
-{
-    if (!channel)
-    {
-        io.post(std::bind(callback, boost::asio::error::broken_pipe));
-        return;
-    }
-
-    (channel.get()->*method)(callback);
-}
-
-template<class async_method>
-void exec_method(channel_ptr channel, async_method method, boost::system::error_code& ec) noexcept(true)
-{ 
-    if (channel) 
-    {
-        std::promise<boost::system::error_code> promise; 
-        std::future<boost::system::error_code> future = promise.get_future(); 
-        (channel.get()->*method)([&promise](const boost::system::error_code& error) 
-        { 
-            promise.set_value(error); 
-        }); 
-        ec = future.get(); 
-        return; 
-    } 
-    ec = boost::asio::error::broken_pipe; 
-}
-
 template<class io_method, class limit_method, class data_buffer, class handler>
 void post_io_method(channel_ptr channel, io_method method, limit_method limiter, const data_buffer& buffer, boost::asio::io_context& io, handler&& callback, size_t result = 0) noexcept(true)
 {
@@ -149,41 +120,35 @@ public:
     typedef socket lowest_layer_type;
     typedef boost::asio::io_context::executor_type executor_type;
 
-    socket(boost::asio::io_context& io) noexcept(true) 
+    socket(boost::asio::io_context& io, uint64_t secret = 0) noexcept(true) 
         : m_asio(io)
+        , m_channel(create_channel(m_asio, secret))
     {
     }
 
-    socket(boost::asio::io_context& io, const endpoint& le, const endpoint& re, uint64_t secret) noexcept(false) 
-        : socket(io)
+    socket(socket&& other) noexcept(true) 
+        : m_asio(other.m_asio)
+        , m_local(other.m_local)
+        , m_remote(other.m_remote)
+        , m_channel(other.m_channel)
     {
-        open(le, re, secret);
+        other.m_local = endpoint();
+        other.m_remote = endpoint();
+        other.m_channel.reset();
     }
 
-    bool is_open() const noexcept(false) 
+    void bind(const endpoint& local) noexcept(false)
     {
-        return !!m_channel;
+        m_local = local;
+        m_channel->bind(local);
     }
 
-    void open(const endpoint& le, const endpoint& re, uint64_t secret) noexcept(false)
-    {
-        if (!m_channel)
-        {
-            m_local = le;
-            m_remote = re;
-            m_channel = create_channel(m_asio, le, re, secret);
-            m_channel->open();
-            return;
-        }
-
-        boost::asio::detail::throw_error(boost::asio::error::operation_not_supported, "open");
-    }
-
-    void open(const endpoint& le, const endpoint& re, uint64_t secret, boost::system::error_code& ec) noexcept(true)
+    void bind(const endpoint& local, boost::system::error_code& ec) noexcept(true)
     {
         try
         {
-            open(le, re, secret);
+            m_local = local;
+            m_channel->bind(local);
         }
         catch( const boost::system::system_error& ex)
         {
@@ -193,71 +158,115 @@ public:
 
     void close() noexcept(true)
     {
-        if (m_channel)
+        m_channel->close();
+    }
+
+    void connect(const endpoint& remote) noexcept(false)
+    {
+        m_remote = remote;
+
+        std::promise<boost::system::error_code> promise; 
+        std::future<boost::system::error_code> future = promise.get_future(); 
+
+        m_channel->connect(remote, [&promise](const boost::system::error_code& code)
         {
-            m_channel->close();
-            m_channel.reset();
+            promise.set_value(code);
+        });
+
+        boost::system::error_code error = future.get();
+
+        if (error)
+            boost::asio::detail::throw_error(error, "connect");
+    }
+
+    void connect(const endpoint& remote, boost::system::error_code& ec) noexcept(true)
+    {
+        try
+        {
+            connect(remote);
+        }
+        catch( const boost::system::system_error& ex)
+        {
+            ec = ex.code();
         }
     }
 
-    void connect() noexcept(false)
-    {
-        boost::system::error_code ec;
-        detail::exec_method(m_channel, &channel::connect, ec);
-
-        if (ec)
-            boost::asio::detail::throw_error(ec, "connect");
-    }
-
-    void connect(boost::system::error_code& ec) noexcept(true)
-    {
-        detail::exec_method(m_channel, &channel::connect, ec);
-    }
-
     template<class connect_handler>
-    void async_connect(connect_handler&& callback) noexcept(true)
+    void async_connect(const endpoint& remote, connect_handler&& callback) noexcept(true)
     {
-        detail::post_method(m_channel, &channel::connect, m_asio, callback);
+        m_remote = remote;
+        m_channel->connect(remote, std::move(callback));
     }
 
-    void accept() noexcept(false)
+    void accept(const endpoint& remote) noexcept(false)
     {
-        boost::system::error_code ec;
-        detail::exec_method(m_channel, &channel::accept, ec);
+        m_remote = remote;
 
-        if (ec)
-            boost::asio::detail::throw_error(ec, "accept");
+        std::promise<boost::system::error_code> promise; 
+        std::future<boost::system::error_code> future = promise.get_future(); 
+        
+        m_channel->accept(remote, [&promise](const boost::system::error_code& code)
+        {
+            promise.set_value(code);
+        });
+
+        boost::system::error_code error = future.get();
+
+        if (error)
+            boost::asio::detail::throw_error(error, "accept");
     }
 
-    void accept(boost::system::error_code& ec) noexcept(true)
+    void accept(const endpoint& remote, boost::system::error_code& ec) noexcept(true)
     {
-        detail::exec_method(m_channel, &channel::accept, ec);
+        try
+        {
+            accept(remote);
+        }
+        catch( const boost::system::system_error& ex)
+        {
+            ec = ex.code();
+        }
     }
 
     template<class accept_handler>
-    void async_accept(accept_handler&& callback) noexcept(true)
+    void async_accept(const endpoint& remote, accept_handler&& callback) noexcept(true)
     {
-        detail::post_method(m_channel, &channel::accept, m_asio, callback);
+        m_remote = remote;
+        m_channel->accept(remote, std::move(callback));
     }
 
     void shutdown() noexcept(false)
     {
-        boost::system::error_code ec;
-        detail::exec_method(m_channel, &channel::shutdown, ec);
+        std::promise<boost::system::error_code> promise; 
+        std::future<boost::system::error_code> future = promise.get_future(); 
+        
+        m_channel->shutdown([&promise](const boost::system::error_code& code)
+        {
+            promise.set_value(code);
+        });
 
-        if (ec)
-            boost::asio::detail::throw_error(ec, "shutdown");
+        boost::system::error_code error = future.get();
+
+        if (error)
+            boost::asio::detail::throw_error(error, "shutdown");
     }
 
     void shutdown(boost::system::error_code& ec) noexcept(true)
     {
-        detail::exec_method(m_channel, &channel::shutdown, ec);
+        try
+        {
+            shutdown();
+        }
+        catch( const boost::system::system_error& ex)
+        {
+            ec = ex.code();
+        }
     }
 
     template<class shutdown_handler>
     void async_shutdown(shutdown_handler&& callback) noexcept(true)
     {
-        detail::post_method(m_channel, &channel::shutdown, m_asio, callback);
+        m_channel->shutdown(std::move(callback));
     }
 
     socket& lowest_layer() noexcept(true)

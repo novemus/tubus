@@ -32,12 +32,12 @@ return std::async([obj = object, buffer]() \
     future.get(); \
 }) \
 
-#define ASYNC(object, method, filter) \
-return std::async([obj = object]() \
+#define ASYNC(object, method, filter, ...) \
+return std::async([=, obj = object]() \
 { \
     std::promise<void> promise; \
     std::future<void> future = promise.get_future(); \
-    obj->method([&promise](const boost::system::error_code& error) \
+    obj->method(__VA_ARGS__[&promise](const boost::system::error_code& error) \
     { \
         if (filter) \
             promise.set_exception(std::make_exception_ptr(boost::system::system_error(error))); \
@@ -72,8 +72,8 @@ public:
 
     void open()
     {
-        m_channel = tubus::create_channel(g_reactor.io, m_bind, m_peer, m_secret);
-        m_channel->open();
+        m_channel = tubus::create_channel(g_reactor.io, m_secret);
+        m_channel->bind(m_bind);
     }
 
     void close()
@@ -93,12 +93,12 @@ public:
 
     std::future<void> async_accept()
     {
-        ASYNC(m_channel, accept, error);
+        ASYNC(m_channel, accept, error, m_peer, );
     }
 
     std::future<void> async_connect()
     {
-        ASYNC(m_channel, connect, error);
+        ASYNC(m_channel, connect, error, m_peer, );
     }
 
     std::future<void> async_shutdown()
@@ -364,8 +364,8 @@ BOOST_AUTO_TEST_CASE(speed)
     boost::asio::ip::udp::endpoint re(boost::asio::ip::address::from_string("127.0.0.1"), 3002);
 
     boost::asio::io_context io;
-    auto left = tubus::create_channel(g_reactor.io, le, re, 0);
-    auto right = tubus::create_channel(g_reactor.io, re, le, 0);
+    auto left = tubus::create_channel(g_reactor.io, 0);
+    auto right = tubus::create_channel(g_reactor.io, 0);
 
     const size_t MB = 1024 * 1024;
     const size_t TRAFFIC = 1024 * MB;
@@ -447,11 +447,11 @@ BOOST_AUTO_TEST_CASE(speed)
         right->read(rb, on_read);
     };
 
-    right->open();
-    left->open();
+    right->bind(re);
+    left->bind(le);
 
-    right->accept(on_accept);
-    left->connect(on_connect);
+    right->accept(le, on_accept);
+    left->connect(re, on_connect);
 
     auto begin = boost::posix_time::microsec_clock::local_time();
 

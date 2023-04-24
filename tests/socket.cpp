@@ -24,15 +24,11 @@ BOOST_AUTO_TEST_CASE(core)
     tubus::endpoint le(boost::asio::ip::address::from_string("127.0.0.1"), 3001);
     tubus::endpoint re(boost::asio::ip::address::from_string("127.0.0.1"), 3002);
 
-    tubus::socket left(g_reactor.io);
-    tubus::socket right(g_reactor.io);
+    tubus::socket left(g_reactor.io, 1234567890);
+    tubus::socket right(g_reactor.io, 1234567890);
 
-    boost::system::error_code ec;
-    left.open(le, re, 1234567890, ec);
-    BOOST_REQUIRE_EQUAL(ec, NO_ERROR);
-
-    right.open(re, le, 1234567890, ec);
-    BOOST_REQUIRE_EQUAL(ec, NO_ERROR);
+    BOOST_CHECK_NO_THROW(left.bind(le));
+    BOOST_CHECK_NO_THROW(right.bind(re));
 
     std::promise<void> rp;
     std::future<void> rf = rp.get_future();
@@ -43,7 +39,7 @@ BOOST_AUTO_TEST_CASE(core)
     stream_source source;
     stream_sink sink;
 
-    left.async_accept([&](const boost::system::error_code& error)
+    left.async_accept(re, [&](const boost::system::error_code& error)
     {
         BOOST_CHECK_EQUAL(error, NO_ERROR);
         tubus::mutable_buffer mb(stream_source::chunk_size);
@@ -68,7 +64,7 @@ BOOST_AUTO_TEST_CASE(core)
         });
     });
 
-    right.async_connect([&](const boost::system::error_code& error)
+    right.async_connect(le, [&](const boost::system::error_code& error)
     {
         BOOST_CHECK_EQUAL(error, NO_ERROR);
 
@@ -94,6 +90,7 @@ BOOST_AUTO_TEST_CASE(core)
 
     BOOST_CHECK_EQUAL(source.read(), sink.written());
 
+    boost::system::error_code ec;
     BOOST_REQUIRE_EQUAL(stream_source::chunk_size, right.write_some(tubus::mutable_buffer(stream_source::chunk_size), ec));
     BOOST_REQUIRE_EQUAL(ec, NO_ERROR);
 
@@ -122,7 +119,7 @@ BOOST_AUTO_TEST_CASE(ssl)
     srv.set_verify_mode(boost::asio::ssl::verify_peer | boost::asio::ssl::verify_fail_if_no_peer_cert | boost::asio::ssl::verify_client_once);
     srv.load_verify_file("./certs/ca.crt");
 
-    boost::asio::ssl::stream<tubus::socket> server(g_reactor.io, srv);
+    boost::asio::ssl::stream<tubus::socket> server(tubus::socket(g_reactor.io, 1234567890), srv);
 
     boost::asio::ssl::context clt(boost::asio::ssl::context::sslv23);
     clt.set_options(boost::asio::ssl::context::default_workarounds | boost::asio::ssl::context::sslv23_client);
@@ -131,13 +128,13 @@ BOOST_AUTO_TEST_CASE(ssl)
     clt.set_verify_mode(boost::asio::ssl::verify_peer | boost::asio::ssl::verify_fail_if_no_peer_cert);
     clt.load_verify_file("./certs/ca.crt");
 
-    boost::asio::ssl::stream<tubus::socket> client(g_reactor.io, clt);
+    boost::asio::ssl::stream<tubus::socket> client(tubus::socket(g_reactor.io, 1234567890), clt);
 
     boost::system::error_code ec;
-    server.lowest_layer().open(se, ce, 1234567890, ec);
+    server.lowest_layer().bind(se, ec);
     BOOST_REQUIRE_EQUAL(ec, NO_ERROR);
 
-    client.lowest_layer().open(ce, se, 1234567890, ec);
+    client.lowest_layer().bind(ce, ec);
     BOOST_REQUIRE_EQUAL(ec, NO_ERROR);
 
     std::promise<void> sp;
@@ -149,7 +146,7 @@ BOOST_AUTO_TEST_CASE(ssl)
     stream_source source;
     stream_sink sink;
 
-    server.lowest_layer().async_accept([&](const boost::system::error_code& error)
+    server.lowest_layer().async_accept(ce, [&](const boost::system::error_code& error)
     {
         BOOST_CHECK_EQUAL(error, NO_ERROR);
         BOOST_CHECK_NO_THROW(server.handshake(boost::asio::ssl::stream_base::server));
@@ -180,7 +177,7 @@ BOOST_AUTO_TEST_CASE(ssl)
         });
     });
 
-    client.lowest_layer().async_connect([&](const boost::system::error_code& error)
+    client.lowest_layer().async_connect(se, [&](const boost::system::error_code& error)
     {
         BOOST_CHECK_EQUAL(error, NO_ERROR);
         BOOST_CHECK_NO_THROW(client.handshake(boost::asio::ssl::stream_base::client));
@@ -225,7 +222,7 @@ BOOST_AUTO_TEST_CASE(acceptor)
     tubus::endpoint c2(boost::asio::ip::address::from_string("127.0.0.1"), 3002);
 
     tubus::acceptor server(g_reactor.io);
-    BOOST_REQUIRE_NO_THROW(server.bind(se, 0));
+    BOOST_REQUIRE_NO_THROW(server.bind(se));
 
     std::promise<void> ap1;
     std::future<void> af1 = ap1.get_future();
@@ -239,8 +236,8 @@ BOOST_AUTO_TEST_CASE(acceptor)
     });
 
     tubus::socket client1(g_reactor.io);
-    BOOST_REQUIRE_NO_THROW(client1.open(c1, se, 0));
-    BOOST_REQUIRE_NO_THROW(client1.connect());
+    BOOST_REQUIRE_NO_THROW(client1.bind(c1));
+    BOOST_REQUIRE_NO_THROW(client1.connect(se));
 
     std::promise<void> ap2;
     std::future<void> af2 = ap2.get_future();
@@ -254,8 +251,8 @@ BOOST_AUTO_TEST_CASE(acceptor)
     });
 
     tubus::socket client2(g_reactor.io);
-    BOOST_REQUIRE_NO_THROW(client2.open(c2, se, 0));
-    BOOST_REQUIRE_NO_THROW(client2.connect());
+    BOOST_REQUIRE_NO_THROW(client2.bind(c2));
+    BOOST_REQUIRE_NO_THROW(client2.connect(se));
 
     BOOST_CHECK_NO_THROW(af1.get());
     BOOST_CHECK_NO_THROW(af2.get());
