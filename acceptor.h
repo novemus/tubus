@@ -198,13 +198,13 @@ public:
 
     void accept(socket& peer, boost::system::error_code& ec) noexcept(true)
     {
-        peer.bind(m_local, ec);
+        endpoint remote;
+        m_socket.receive_from(mutable_buffer(), remote, 0, ec);
 
         if (ec)
             return;
 
-        endpoint remote;
-        m_socket.receive_from(mutable_buffer(), remote, 0, ec);
+        peer.bind(m_local, ec);
 
         if (ec)
             return;
@@ -223,15 +223,6 @@ public:
     template<class accept_handler>
     void async_accept(socket& peer, accept_handler&& callback) noexcept(true)
     {
-        boost::system::error_code ec;
-        peer.bind(m_local, ec);
-
-        if (ec)
-        {
-            m_asio.post(std::bind(callback, ec));
-            return;
-        }
-
         auto remote = std::make_shared<endpoint>();
         m_socket.async_receive_from(mutable_buffer(), *remote, [&peer, local = m_local, remote, secret = m_secret, callback](const boost::system::error_code& error, size_t size)
         {
@@ -240,9 +231,9 @@ public:
                 callback(error);
                 return;
             }
-
+            
             boost::system::error_code code;
-            peer.open(local, *remote, secret, code);
+            peer.bind(local, code);
 
             if (code)
             {
@@ -250,7 +241,7 @@ public:
                 return;
             }
 
-            peer.async_accept(callback);
+            peer.async_accept(*remote, callback);
         });
     }
 };

@@ -1033,7 +1033,7 @@ protected:
         m_connector.imbue(pack);
 
         auto status = m_connector.status();
-        if (status == state::linked || status == state::accepting || status == state::connecting)
+        if (status == state::linked || status == state::connecting)
         {
             m_istreamer.imbue(pack);
             m_ostreamer.imbue(pack);
