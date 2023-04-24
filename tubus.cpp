@@ -1251,13 +1251,13 @@ public:
     size_t writable() const noexcept(true) override
     {
         std::unique_lock<std::mutex> lock(m_mutex);
-        return static_cast<size_t>(m_ostreamer.writable());
+        return m_connector.status() == state::linked ? static_cast<size_t>(m_ostreamer.writable()) : 0ul;
     }
 
     size_t readable() const noexcept(true) override
     {
         std::unique_lock<std::mutex> lock(m_mutex);
-        return static_cast<size_t>(m_istreamer.readable());
+        return m_connector.status() == state::linked ? static_cast<size_t>(m_istreamer.readable()) : 0ul;
     }
 
 private:

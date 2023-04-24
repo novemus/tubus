@@ -232,12 +232,14 @@ BOOST_AUTO_TEST_CASE(acceptor)
     {
         BOOST_CHECK_EQUAL(code, NO_ERROR);
         BOOST_CHECK_EQUAL(peer1.remote_endpoint(), c1);
+
+        boost::system::error_code ec;
+        BOOST_CHECK_EQUAL(4096, boost::asio::read(peer1, tubus::mutable_buffer(4096), ec));
+        BOOST_CHECK_EQUAL(ec, NO_ERROR);
+        BOOST_CHECK_EQUAL(peer1.available(), 0);
+
         ap1.set_value();
     });
-
-    tubus::socket client1(g_reactor.io);
-    BOOST_REQUIRE_NO_THROW(client1.bind(c1));
-    BOOST_REQUIRE_NO_THROW(client1.connect(se));
 
     std::promise<void> ap2;
     std::future<void> af2 = ap2.get_future();
@@ -247,15 +249,35 @@ BOOST_AUTO_TEST_CASE(acceptor)
     {
         BOOST_CHECK_EQUAL(code, NO_ERROR);
         BOOST_CHECK_EQUAL(peer2.remote_endpoint(), c2);
+
+        boost::system::error_code ec;
+        BOOST_CHECK_EQUAL(1024, boost::asio::read(peer2, tubus::mutable_buffer(1024), ec));
+        BOOST_CHECK_EQUAL(ec, NO_ERROR);
+        BOOST_CHECK_EQUAL(peer2.available(), 0);
+
         ap2.set_value();
     });
+
+    tubus::socket client1(g_reactor.io);
+    BOOST_REQUIRE_NO_THROW(client1.bind(c1));
+    BOOST_REQUIRE_NO_THROW(client1.connect(se));
 
     tubus::socket client2(g_reactor.io);
     BOOST_REQUIRE_NO_THROW(client2.bind(c2));
     BOOST_REQUIRE_NO_THROW(client2.connect(se));
 
+    boost::system::error_code ec;
+    BOOST_CHECK_EQUAL(4096, boost::asio::write(client1, tubus::mutable_buffer(4096), ec));
+    BOOST_CHECK_EQUAL(1024, boost::asio::write(client2, tubus::mutable_buffer(1024), ec));
+
     BOOST_CHECK_NO_THROW(af1.get());
     BOOST_CHECK_NO_THROW(af2.get());
+
+    BOOST_CHECK_NO_THROW(peer1.close());
+    BOOST_CHECK_NO_THROW(peer2.close());
+
+    BOOST_CHECK_NO_THROW(client1.close());
+    BOOST_CHECK_NO_THROW(client2.close());
 }
 
 BOOST_AUTO_TEST_SUITE_END();

@@ -384,6 +384,11 @@ public:
     {
         return m_remote;
     }
+
+    size_t available() const noexcept(true)
+    {
+        return m_channel->readable();
+    }
 };
 
 }
