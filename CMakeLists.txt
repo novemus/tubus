@@ -3,8 +3,10 @@ project(tubus VERSION 1.0)
 
 set(TESTS_NAME tubus_ut)
 
-set(SOURCES tubus.cpp)
-set(TESTS_SOURCES tubus.cpp tests/buffer.cpp tests/packet.cpp tests/tubus.cpp tests/socket.cpp)
+set(SOURCES channel.cpp)
+set(HEADERS buffer.h channel.h socket.h acceptor.h)
+
+set(TESTS_SOURCES channel.cpp tests/buffer.cpp tests/packet.cpp tests/tubus.cpp tests/socket.cpp)
 
 add_definitions(-DTUBUS_EXPORTS)
 
@@ -50,6 +52,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
 endif()
 
 install(TARGETS ${PROJECT_NAME})
+install(FILES ${HEADERS} DESTINATION include/tubus)
 
 enable_testing()
-add_test(NAME ${TESTS_NAME} COMMAND ${TESTS_NAME} WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+add_test(NAME ${TESTS_NAME} COMMAND ${TESTS_NAME} WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/tests)

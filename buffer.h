@@ -10,7 +10,6 @@
 
 #pragma once
 
-#include "export.h"
 #include <list>
 #include <deque>
 #include <ctime>
@@ -62,16 +61,16 @@ struct const_buffer : public boost::asio::const_buffer
     {
     }
 
-    const_iterator begin() const { return this; }
+    inline const_iterator begin() const { return this; }
 
-    const_iterator end() const { return this + 1; }
+    inline const_iterator end() const { return this + 1; }
 
-    bool unique() const noexcept(true)
+    inline bool unique() const noexcept(true)
     {
         return m_array.unique();
     }
 
-    const_buffer slice(size_t pos, size_t len) const noexcept(false)
+    inline const_buffer slice(size_t pos, size_t len) const noexcept(false)
     {
         if (pos > size() || pos + len > size())
             throw std::runtime_error("const_buffer::slice: out of range");
@@ -191,16 +190,16 @@ struct mutable_buffer : public boost::asio::mutable_buffer
     {
     }
 
-    const_iterator begin() const noexcept(true) { return this; }
+    inline const_iterator begin() const noexcept(true) { return this; }
 
-    const_iterator end() const noexcept(true) { return this + 1; }
+    inline const_iterator end() const noexcept(true) { return this + 1; }
 
-    bool unique() const noexcept(true)
+    inline bool unique() const noexcept(true)
     {
         return m_array.unique();
     }
 
-    mutable_buffer slice(size_t pos, size_t len) const noexcept(false)
+    inline mutable_buffer slice(size_t pos, size_t len) const noexcept(false)
     {
         if (pos > size() || pos + len > size())
             throw std::runtime_error("mutable_buffer::slice: out of range");

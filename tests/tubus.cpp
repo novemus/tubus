@@ -9,7 +9,7 @@
  */
 
 #include "../buffer.h"
-#include "../tubus.h"
+#include "../channel.h"
 #include "common.h"
 #include <future>
 #include <functional>

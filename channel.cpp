@@ -9,7 +9,7 @@
  */
 
 #include "packet.h"
-#include "tubus.h"
+#include "channel.h"
 #include <map>
 #include <set>
 #include <list>
