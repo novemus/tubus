@@ -1,14 +1,8 @@
 cmake_minimum_required(VERSION 3.10)
 project(tubus VERSION 1.0)
 
-set(TESTS_NAME tubus_ut)
-
 set(SOURCES channel.cpp)
 set(HEADERS buffer.h channel.h socket.h acceptor.h)
-
-set(TESTS_SOURCES channel.cpp tests/buffer.cpp tests/packet.cpp tests/tubus.cpp tests/socket.cpp)
-
-add_definitions(-DTUBUS_EXPORTS)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
     add_definitions(
@@ -20,39 +14,64 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
     )
 endif()
 
-find_package(Boost COMPONENTS system thread unit_test_framework REQUIRED)
-
-message(status "** Boost Version: ${Boost_VERSION}")
-message(status "** Boost Include Dirs: ${Boost_INCLUDE_DIRS}")
-message(status "** Boost Librariy Dirs: ${Boost_LIBRARY_DIRS}")
-message(status "** Boost Libraries: ${Boost_LIBRARIES}")
+find_package(Boost COMPONENTS system thread REQUIRED)
 
 include_directories(${Boost_INCLUDE_DIRS})
 link_directories(${Boost_LIBRARY_DIRS})
 
-find_package(OpenSSL REQUIRED)
-
-message(status "** OpenSSL Version: ${OPENSSL_VERSION}")
-message(status "** OpenSSL Include Dir: ${OPENSSL_INCLUDE_DIR}")
-message(status "** OpenSSL Libraries: ${OPENSSL_LIBRARIES}")
-
-add_library(${PROJECT_NAME} ${SOURCES})
-add_executable(${TESTS_NAME} ${TESTS_SOURCES})
-
-target_link_libraries(${TESTS_NAME} OpenSSL::Crypto OpenSSL::SSL)
+option(BUILD_SHARED_LIBS "" ON)
+if (BUILD_SHARED_LIBS)
+   add_definitions(-DTUBUS_EXPORTS)
+   add_library(${PROJECT_NAME} SHARED ${SOURCES})
+else()
+   add_library(${PROJECT_NAME} STATIC ${SOURCES})
+endif()
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -Wall")
     set(THREADS_PREFER_PTHREAD_FLAG ON)
     find_package(Threads REQUIRED)
-    target_link_libraries(${PROJECT_NAME} Threads::Threads)
-    target_link_libraries(${PROJECT_NAME} ${Boost_LIBRARIES})
-    target_link_libraries(${TESTS_NAME} Threads::Threads)
-    target_link_libraries(${TESTS_NAME} ${Boost_LIBRARIES})
+    target_link_libraries(${PROJECT_NAME} PUBLIC Threads::Threads)
+    target_link_libraries(${PROJECT_NAME} PUBLIC ${Boost_LIBRARIES})
 endif()
 
-install(TARGETS ${PROJECT_NAME})
-install(FILES ${HEADERS} DESTINATION include/tubus)
+include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
 
-enable_testing()
-add_test(NAME ${TESTS_NAME} COMMAND ${TESTS_NAME} WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/tests)
+write_basic_package_version_file(
+    "${CMAKE_CURRENT_BINARY_DIR}/tubus-config-version.cmake"
+    VERSION "${CMAKE_PROJECT_VERSION}"
+    COMPATIBILITY AnyNewerVersion
+)
+
+if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+    install(TARGETS ${PROJECT_NAME} LIBRARY DESTINATION ${${PROJECT_NAME}_VERSION}/lib)
+    install(FILES ${HEADERS} DESTINATION ${${PROJECT_NAME}_VERSION}/include)
+    configure_package_config_file(${CMAKE_CURRENT_SOURCE_DIR}/tubus-config.cmake.in "${CMAKE_CURRENT_BINARY_DIR}/tubus-config.cmake" INSTALL_DESTINATION ${${PROJECT_NAME}_VERSION}/cmake)
+    install(FILES "${CMAKE_CURRENT_BINARY_DIR}/tubus-config.cmake" "${CMAKE_CURRENT_BINARY_DIR}/tubus-config-version.cmake" DESTINATION ${${PROJECT_NAME}_VERSION}/cmake)
+else()
+    install(TARGETS ${PROJECT_NAME} LIBRARY DESTINATION lib)
+    install(FILES ${HEADERS} DESTINATION include)
+    configure_package_config_file(${CMAKE_CURRENT_SOURCE_DIR}/tubus-config.cmake.in "${CMAKE_CURRENT_BINARY_DIR}/tubus-config.cmake" INSTALL_DESTINATION cmake)
+    install(FILES "${CMAKE_CURRENT_BINARY_DIR}/tubus-config.cmake" "${CMAKE_CURRENT_BINARY_DIR}/tubus-config-version.cmake" DESTINATION cmake)
+endif()
+
+option(BUILD_TESTING "" OFF)
+if(BUILD_TESTING)
+    
+    find_package(Boost COMPONENTS unit_test_framework REQUIRED)
+    find_package(OpenSSL REQUIRED)
+
+    set(TESTS_NAME tubus_ut)
+    set(TESTS_SOURCES channel.cpp tests/buffer.cpp tests/packet.cpp tests/tubus.cpp tests/socket.cpp)
+
+    add_executable(${TESTS_NAME} ${TESTS_SOURCES})
+    target_link_libraries(${TESTS_NAME} OpenSSL::Crypto OpenSSL::SSL)
+
+    if(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+        target_link_libraries(${TESTS_NAME} Threads::Threads)
+        target_link_libraries(${TESTS_NAME} ${Boost_LIBRARIES})
+    endif()
+    enable_testing()
+    add_test(NAME ${TESTS_NAME} COMMAND ${TESTS_NAME} WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/tests)
+endif()

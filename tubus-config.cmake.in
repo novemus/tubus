@@ -1,0 +1,44 @@
+include(CMakeFindDependencyMacro)
+
+find_dependency(Boost COMPONENTS system thread)
+
+set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
+find_dependency(Threads)
+unset(CMAKE_THREAD_PREFER_PTHREAD)
+
+get_filename_component(tubus_CMAKE_DIR "${CMAKE_CURRENT_LIST_FILE}" PATH)
+set(tubus_INCLUDE_DIRS "${tubus_CMAKE_DIR}/../include")
+set(tubus_LIBRARY_DIRS "${tubus_CMAKE_DIR}/../lib")
+
+if(NOT TARGET tubus)
+    if (BUILD_SHARED_LIBS)
+        add_library(tubus SHARED IMPORTED)
+    else()
+        add_library(tubus STATIC IMPORTED)
+    endif()
+
+    if(WIN32 AND BUILD_SHARED_LIBS)
+        find_file(tubus_DLL tubus.dll PATHS "${tubus_LIBRARY_DIRS}" NO_DEFAULT_PATH)
+        find_file(tubus_LIB tubus.lib PATHS "${tubus_LIBRARY_DIRS}" NO_DEFAULT_PATH)
+        if(NOT tubus_DLL OR NOT tubus_LIB)
+            message(FATAL_ERROR "tubus shared library not found")
+        endif()
+
+        set_target_properties(tubus PROPERTIES
+            INTERFACE_INCLUDE_DIRECTORIES ${tubus_INCLUDE_DIRS}
+            IMPORTED_IMPLIB "${tubus_LIB}"
+            IMPORTED_LOCATION "${tubus_DLL}")
+    else()
+        if (WIN32)
+            find_file(tubus_LIB tubus.lib PATHS "${tubus_LIBRARY_DIRS}" NO_DEFAULT_PATH)
+        elseif(BUILD_SHARED_LIBS)
+            find_file(tubus_LIB libtubus.so PATHS "${tubus_LIBRARY_DIRS}" NO_DEFAULT_PATH)
+        else()
+            find_file(tubus_LIB libtubus.a PATHS "${tubus_LIBRARY_DIRS}" NO_DEFAULT_PATH)
+        endif()
+
+        set_target_properties(tubus PROPERTIES
+            INTERFACE_INCLUDE_DIRECTORIES ${tubus_INCLUDE_DIRS}
+            IMPORTED_LOCATION "${tubus_LIB}")
+    endif()
+endif()
