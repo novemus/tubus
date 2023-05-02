@@ -14,7 +14,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
     )
 endif()
 
-find_package(Boost COMPONENTS system thread REQUIRED)
+find_package(Boost REQUIRED COMPONENTS system thread)
 
 include_directories(${Boost_INCLUDE_DIRS})
 link_directories(${Boost_LIBRARY_DIRS})
@@ -45,8 +45,8 @@ write_basic_package_version_file(
 )
 
 if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
-    install(TARGETS ${PROJECT_NAME} LIBRARY DESTINATION ${${PROJECT_NAME}_VERSION}/lib)
-    install(FILES ${HEADERS} DESTINATION ${${PROJECT_NAME}_VERSION}/include)
+    install(TARGETS ${PROJECT_NAME} LIBRARY DESTINATION ${PROJECT_NAME}-${${PROJECT_NAME}_VERSION}/lib)
+    install(FILES ${HEADERS} DESTINATION ${PROJECT_NAME}-${${PROJECT_NAME}_VERSION}/include)
     configure_package_config_file(${CMAKE_CURRENT_SOURCE_DIR}/tubus-config.cmake.in "${CMAKE_CURRENT_BINARY_DIR}/tubus-config.cmake" INSTALL_DESTINATION ${${PROJECT_NAME}_VERSION}/cmake)
     install(FILES "${CMAKE_CURRENT_BINARY_DIR}/tubus-config.cmake" "${CMAKE_CURRENT_BINARY_DIR}/tubus-config-version.cmake" DESTINATION ${${PROJECT_NAME}_VERSION}/cmake)
 else()
@@ -59,7 +59,7 @@ endif()
 option(BUILD_TESTING "" OFF)
 if(BUILD_TESTING)
     
-    find_package(Boost COMPONENTS unit_test_framework REQUIRED)
+    find_package(Boost REQUIRED COMPONENTS unit_test_framework)
     find_package(OpenSSL REQUIRED)
 
     set(TESTS_NAME tubus_ut)
@@ -72,6 +72,7 @@ if(BUILD_TESTING)
         target_link_libraries(${TESTS_NAME} Threads::Threads)
         target_link_libraries(${TESTS_NAME} ${Boost_LIBRARIES})
     endif()
+
     enable_testing()
     add_test(NAME ${TESTS_NAME} COMMAND ${TESTS_NAME} WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/tests)
 endif()

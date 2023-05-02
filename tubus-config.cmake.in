@@ -6,9 +6,9 @@ set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
 find_dependency(Threads)
 unset(CMAKE_THREAD_PREFER_PTHREAD)
 
-get_filename_component(tubus_CMAKE_DIR "${CMAKE_CURRENT_LIST_FILE}" PATH)
-set(tubus_INCLUDE_DIRS "${tubus_CMAKE_DIR}/../include")
-set(tubus_LIBRARY_DIRS "${tubus_CMAKE_DIR}/../lib")
+get_filename_component(tubus_CMAKE_DIR "${CMAKE_CURRENT_LIST_FILE}/.." PATH)
+set(tubus_INCLUDE_DIRS "${tubus_CMAKE_DIR}/include")
+set(tubus_LIBRARY_DIRS "${tubus_CMAKE_DIR}/lib")
 
 if(NOT TARGET tubus)
     if (BUILD_SHARED_LIBS)
