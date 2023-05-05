@@ -11,24 +11,18 @@
 #pragma once
 
 #ifdef _MSC_VER
-#define TUBUS_EXPORT_DECLSPEC extern "C" __declspec(dllexport)
-#define TUBUS_IMPORT_DECLSPEC extern "C" __declspec(dllimport)
 #define TUBUS_CLASS_EXPORT_DECLSPEC __declspec(dllexport)
-#define TUBUS_CLASS_IMPORT_DECLSPEC __declspec(dllimport)
+#define TUBUS_CLASS_IMPORT_DECLSPEC
 #endif // _MSC_VER
 
 #ifdef __GNUC__
-#define TUBUS_EXPORT_DECLSPEC extern "C" __attribute__ ((visibility("default")))
-#define TUBUS_IMPORT_DECLSPEC extern "C"
 #define TUBUS_CLASS_EXPORT_DECLSPEC __attribute__ ((visibility("default")))
 #define TUBUS_CLASS_IMPORT_DECLSPEC 
 #endif
 
 #ifdef TUBUS_EXPORTS
-#define TUBUS_DECLSPEC TUBUS_EXPORT_DECLSPEC
 #define TUBUS_CLASS_DECLSPEC TUBUS_CLASS_EXPORT_DECLSPEC
 #else
-#define TUBUS_DECLSPEC TUBUS_IMPORT_DECLSPEC
 #define TUBUS_CLASS_DECLSPEC TUBUS_CLASS_IMPORT_DECLSPEC
 #endif
 
