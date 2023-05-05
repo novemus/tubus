@@ -117,7 +117,7 @@ public:
     }
 };
 
-class mediator
+class mediator : public std::enable_shared_from_this<mediator>
 {
     boost::asio::ip::udp::endpoint m_le;
     boost::asio::ip::udp::endpoint m_re;
@@ -125,16 +125,15 @@ class mediator
     boost::asio::ip::udp::endpoint m_ep;
     tubus::mutable_buffer m_rb;
 
-    void on_sent(const boost::system::error_code& e, size_t s)
+    void receive()
     {
-        if (e)
+        std::weak_ptr<mediator> weak = shared_from_this();
+        m_bs.async_receive_from(m_rb, m_ep, [weak](const boost::system::error_code& e, size_t s)
         {
-            if (e != boost::asio::error::operation_aborted)
-                BOOST_TEST_MESSAGE("mediator: " << e.message());
-            return;
-        }
-
-        receive();
+            auto ptr = weak.lock();
+            if (ptr)
+                ptr->on_received(e, s);
+        });
     }
 
     void on_received(const boost::system::error_code& e, size_t s)
@@ -146,19 +145,20 @@ class mediator
             return;
         }
 
-        if (std::rand() % 3 == 0)
+        if (std::rand() % 3)
         {
-            receive();
-            return;
+            boost::system::error_code ec;
+            m_bs.send_to(m_rb.slice(0, s), m_ep == m_le ? m_re : m_le, 0, ec);
+
+            if (ec)
+            {
+                if (e != boost::asio::error::operation_aborted)
+                    BOOST_TEST_MESSAGE("mediator: " << e.message());
+                return;
+            }
         }
 
-        boost::asio::ip::udp::endpoint to = m_ep == m_le ? m_re : m_le;
-        m_bs.async_send_to(m_rb.slice(0, s), to, std::bind(&mediator::on_sent, this, std::placeholders::_1, std::placeholders::_2));
-    }
-
-    void receive()
-    {
-        m_bs.async_receive_from(m_rb, m_ep, std::bind(&mediator::on_received, this, std::placeholders::_1, std::placeholders::_2));
+        receive();
     }
 
 public:
@@ -171,7 +171,10 @@ public:
     {
         m_bs.set_option(boost::asio::socket_base::reuse_address(true));
         m_bs.bind(b);
+    }
 
+    void start()
+    {
         receive();
     }
 };
@@ -283,7 +286,8 @@ BOOST_AUTO_TEST_CASE(integrity)
     boost::asio::ip::udp::endpoint le(boost::asio::ip::address::from_string("127.0.0.1"), 3001);
     boost::asio::ip::udp::endpoint re(boost::asio::ip::address::from_string("127.0.0.1"), 3002);
 
-    mediator proxy(pe, le, re);
+    auto proxy = std::make_shared<mediator>(pe, le, re);
+    proxy->start();
 
     tubus_wrapper left(le, pe, 0);
     tubus_wrapper right(re, pe, 0);
