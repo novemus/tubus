@@ -27,8 +27,8 @@ BOOST_AUTO_TEST_CASE(core)
     tubus::socket left(g_reactor.io, 1234567890);
     tubus::socket right(g_reactor.io, 1234567890);
 
-    BOOST_CHECK_NO_THROW(left.bind(le));
-    BOOST_CHECK_NO_THROW(right.bind(re));
+    BOOST_CHECK_NO_THROW(left.open(le));
+    BOOST_CHECK_NO_THROW(right.open(re));
 
     std::promise<void> rp;
     std::future<void> rf = rp.get_future();
@@ -131,10 +131,10 @@ BOOST_AUTO_TEST_CASE(ssl)
     boost::asio::ssl::stream<tubus::socket> client(tubus::socket(g_reactor.io, 1234567890), clt);
 
     boost::system::error_code ec;
-    server.lowest_layer().bind(se, ec);
+    server.lowest_layer().open(se, ec);
     BOOST_REQUIRE_EQUAL(ec, NONE_ERROR);
 
-    client.lowest_layer().bind(ce, ec);
+    client.lowest_layer().open(ce, ec);
     BOOST_REQUIRE_EQUAL(ec, NONE_ERROR);
 
     std::promise<void> sp;
@@ -222,7 +222,7 @@ BOOST_AUTO_TEST_CASE(acceptor)
     tubus::endpoint c2(boost::asio::ip::address::from_string("127.0.0.1"), 3002);
 
     tubus::acceptor server(g_reactor.io);
-    BOOST_REQUIRE_NO_THROW(server.bind(se));
+    BOOST_REQUIRE_NO_THROW(server.open(se));
 
     std::promise<void> ap1;
     std::future<void> af1 = ap1.get_future();
@@ -259,11 +259,11 @@ BOOST_AUTO_TEST_CASE(acceptor)
     });
 
     tubus::socket client1(g_reactor.io);
-    BOOST_REQUIRE_NO_THROW(client1.bind(c1));
+    BOOST_REQUIRE_NO_THROW(client1.open(c1));
     BOOST_REQUIRE_NO_THROW(client1.connect(se));
 
     tubus::socket client2(g_reactor.io);
-    BOOST_REQUIRE_NO_THROW(client2.bind(c2));
+    BOOST_REQUIRE_NO_THROW(client2.open(c2));
     BOOST_REQUIRE_NO_THROW(client2.connect(se));
 
     boost::system::error_code ec;

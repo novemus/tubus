@@ -73,7 +73,7 @@ public:
     void open()
     {
         m_channel = tubus::create_channel(g_reactor.io, m_secret);
-        m_channel->bind(m_bind);
+        m_channel->open(m_bind);
     }
 
     void close()
@@ -447,8 +447,8 @@ BOOST_AUTO_TEST_CASE(speed)
         right->read(rb, on_read);
     };
 
-    right->bind(re);
-    left->bind(le);
+    right->open(re);
+    left->open(le);
 
     right->accept(le, on_accept);
     left->connect(re, on_connect);

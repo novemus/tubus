@@ -108,8 +108,6 @@ typedef boost::asio::ip::udp::endpoint endpoint;
 class socket
 {
     boost::asio::io_context& m_asio;
-    boost::asio::ip::udp::endpoint m_local;
-    boost::asio::ip::udp::endpoint m_remote;
     channel_ptr m_channel;
 
     socket(const socket&) = delete;
@@ -128,29 +126,23 @@ public:
 
     socket(socket&& other) noexcept(true) 
         : m_asio(other.m_asio)
-        , m_local(other.m_local)
-        , m_remote(other.m_remote)
         , m_channel(other.m_channel)
     {
-        other.m_local = endpoint();
-        other.m_remote = endpoint();
         other.m_channel.reset();
     }
 
-    void bind(const endpoint& local) noexcept(false)
+    void open(const endpoint& local) noexcept(false)
     {
-        m_local = local;
-        m_channel->bind(local);
+        m_channel->open(local);
     }
 
-    void bind(const endpoint& local, boost::system::error_code& ec) noexcept(true)
+    void open(const endpoint& local, boost::system::error_code& ec) noexcept(true)
     {
         try
         {
-            m_local = local;
-            m_channel->bind(local);
+            m_channel->open(local);
         }
-        catch( const boost::system::system_error& ex)
+        catch(const boost::system::system_error& ex)
         {
             ec = ex.code();
         }
@@ -163,8 +155,6 @@ public:
 
     void connect(const endpoint& remote) noexcept(false)
     {
-        m_remote = remote;
-
         std::promise<boost::system::error_code> promise; 
         std::future<boost::system::error_code> future = promise.get_future(); 
 
@@ -185,7 +175,7 @@ public:
         {
             connect(remote);
         }
-        catch( const boost::system::system_error& ex)
+        catch(const boost::system::system_error& ex)
         {
             ec = ex.code();
         }
@@ -194,14 +184,11 @@ public:
     template<class connect_handler>
     void async_connect(const endpoint& remote, connect_handler&& callback) noexcept(true)
     {
-        m_remote = remote;
         m_channel->connect(remote, std::move(callback));
     }
 
     void accept(const endpoint& remote) noexcept(false)
     {
-        m_remote = remote;
-
         std::promise<boost::system::error_code> promise; 
         std::future<boost::system::error_code> future = promise.get_future(); 
         
@@ -222,7 +209,7 @@ public:
         {
             accept(remote);
         }
-        catch( const boost::system::system_error& ex)
+        catch(const boost::system::system_error& ex)
         {
             ec = ex.code();
         }
@@ -231,7 +218,6 @@ public:
     template<class accept_handler>
     void async_accept(const endpoint& remote, accept_handler&& callback) noexcept(true)
     {
-        m_remote = remote;
         m_channel->accept(remote, std::move(callback));
     }
 
@@ -257,7 +243,7 @@ public:
         {
             shutdown();
         }
-        catch( const boost::system::system_error& ex)
+        catch(const boost::system::system_error& ex)
         {
             ec = ex.code();
         }
@@ -375,14 +361,40 @@ public:
         return m_asio.get_executor();
     }
 
-    endpoint local_endpoint() const noexcept(true)
+    endpoint local_endpoint() const noexcept(false)
     {
-        return m_local;
+        return m_channel->host();
     }
 
-    endpoint remote_endpoint() const noexcept(true)
+    endpoint remote_endpoint() const noexcept(false)
     {
-        return m_remote;
+        return m_channel->peer();
+    }
+
+    endpoint local_endpoint(boost::system::error_code& ec) const noexcept(true)
+    {
+        try
+        {
+            return m_channel->host();
+        }
+        catch(const boost::system::system_error& ex)
+        {
+            ec = ex.code();
+        }
+        return endpoint();
+    }
+
+    endpoint remote_endpoint(boost::system::error_code& ec) const noexcept(true)
+    {
+        try
+        {
+            return m_channel->peer();
+        }
+        catch(const boost::system::system_error& ex)
+        {
+            ec = ex.code();
+        }
+        return endpoint();
     }
 
     size_t available() const noexcept(true)

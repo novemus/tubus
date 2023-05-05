@@ -49,7 +49,7 @@ struct TUBUS_CLASS_DECLSPEC channel
 {
     virtual ~channel() noexcept(true) {}
     virtual void close() noexcept(true) = 0;
-    virtual void bind(const endpoint& local) noexcept(false) = 0;
+    virtual void open(const endpoint& local) noexcept(false) = 0;
     virtual void connect(const endpoint& remote, const callback& handle) noexcept(true) = 0;
     virtual void accept(const endpoint& remote, const callback& handle) noexcept(true) = 0;
     virtual void read(const mutable_buffer& buffer, const io_callback& handle) noexcept(true) = 0;
@@ -57,6 +57,8 @@ struct TUBUS_CLASS_DECLSPEC channel
     virtual void shutdown(const callback& handle) noexcept(true) = 0;
     virtual size_t writable() const noexcept(true) = 0;
     virtual size_t readable() const noexcept(true) = 0;
+    virtual endpoint host() const noexcept(false) = 0;
+    virtual endpoint peer() const noexcept(false) = 0;
 };
 
 typedef std::shared_ptr<channel> channel_ptr;

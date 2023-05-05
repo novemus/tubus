@@ -42,7 +42,7 @@ public:
     acceptor(boost::asio::io_context& io, const endpoint& local, uint64_t secret = 0) noexcept(false) 
         : acceptor(io, secret)
     {
-        bind(local);
+        open(local);
     }
 
     executor_type get_executor() const noexcept(true)
@@ -50,7 +50,7 @@ public:
         return m_asio.get_executor();
     }
 
-    void bind(const endpoint& local) noexcept(false)
+    void open(const endpoint& local) noexcept(false)
     {
         if (!m_socket.is_open())
         {
@@ -61,14 +61,14 @@ public:
             return;
         }
 
-        boost::asio::detail::throw_error(boost::asio::error::operation_not_supported, "bind");
+        boost::asio::detail::throw_error(boost::asio::error::no_permission, "open");
     }
 
-    void bind(const endpoint& local, boost::system::error_code& ec) noexcept(true)
+    void open(const endpoint& local, boost::system::error_code& ec) noexcept(true)
     {
         try
         {
-            bind(local);
+            open(local);
         }
         catch( const boost::system::system_error& ex)
         {
@@ -204,7 +204,7 @@ public:
         if (ec)
             return;
 
-        peer.bind(m_local, ec);
+        peer.open(m_local, ec);
 
         if (ec)
             return;
@@ -233,7 +233,7 @@ public:
             }
             
             boost::system::error_code code;
-            peer.bind(local, code);
+            peer.open(local, code);
 
             if (code)
             {

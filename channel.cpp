@@ -1115,7 +1115,7 @@ public:
         close();
     }
 
-    void bind(const endpoint& local) noexcept(false) override
+    void open(const endpoint& local) noexcept(false) override
     {
         std::unique_lock<std::mutex> lock(m_mutex);
 
@@ -1220,7 +1220,7 @@ public:
         if (status != state::linked)
         {
             boost::system::error_code ec = status <= state::initial ? boost::asio::error::not_connected : 
-                status <= state::connecting ? boost::asio::error::try_again : boost::asio::error::shut_down;
+                status <= state::connecting ? boost::asio::error::try_again : boost::asio::error::bad_descriptor;
 
             m_io.post(boost::bind(handler, ec, 0));
             return;
@@ -1238,7 +1238,7 @@ public:
         if (status != state::linked)
         {
             boost::system::error_code ec = status <= state::initial ? boost::asio::error::not_connected : 
-                status <= state::connecting ? boost::asio::error::try_again : boost::asio::error::shut_down;
+                status <= state::connecting ? boost::asio::error::try_again : boost::asio::error::bad_descriptor;
 
             m_io.post(boost::bind(handler, ec, 0));
             return;
@@ -1258,6 +1258,16 @@ public:
     {
         std::unique_lock<std::mutex> lock(m_mutex);
         return m_connector.status() == state::linked ? static_cast<size_t>(m_istreamer.readable()) : 0ul;
+    }
+
+    endpoint host() const noexcept(false) override
+    {
+        return m_socket.local_endpoint();
+    }
+
+    endpoint peer() const noexcept(false) override
+    {
+        return m_socket.remote_endpoint();
     }
 
 private:
