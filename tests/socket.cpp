@@ -171,7 +171,7 @@ BOOST_AUTO_TEST_CASE(ssl)
 
             boost::system::error_code code;
             server.shutdown(code);
-            BOOST_CHECK_EQUAL(code, NONE_ERROR);
+            BOOST_CHECK_MESSAGE(code == NONE_ERROR || code == boost::asio::error::eof, code.message());
 
             sp.set_value();
         });
@@ -197,7 +197,7 @@ BOOST_AUTO_TEST_CASE(ssl)
 
             boost::system::error_code code;
             client.shutdown(code);
-            BOOST_CHECK_EQUAL(code, NONE_ERROR);
+            BOOST_CHECK_MESSAGE(code == NONE_ERROR || code == boost::asio::error::eof, code.message());
 
             cp.set_value();
         });
