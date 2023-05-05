@@ -2,9 +2,9 @@ cmake_minimum_required(VERSION 3.10)
 project(tubus VERSION 1.0)
 
 set(SOURCES channel.cpp)
-set(HEADERS buffer.h channel.h socket.h acceptor.h)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+    set(HEADERS buffer.h channel.h socket.h)
     add_definitions(
         -D_CRT_NO_VA_START_VALIDATION
         -D_CRT_SECURE_NO_WARNINGS
@@ -12,6 +12,8 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
         -D_WINSOCK_DEPRECATED_NO_WARNINGS
         -DINCL_EXTRA_HTON_FUNCTIONS
     )
+else()
+    set(HEADERS buffer.h channel.h socket.h acceptor.h)
 endif()
 
 find_package(Boost REQUIRED COMPONENTS system thread)
@@ -63,7 +65,12 @@ if(BUILD_TESTING)
     find_package(OpenSSL REQUIRED)
 
     set(TESTS_NAME tubus_ut)
-    set(TESTS_SOURCES channel.cpp tests/buffer.cpp tests/packet.cpp tests/tubus.cpp tests/socket.cpp)
+    
+    if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+        set(TESTS_SOURCES channel.cpp tests/buffer.cpp tests/packet.cpp tests/tubus.cpp tests/socket.cpp)
+    else()
+        set(TESTS_SOURCES channel.cpp tests/buffer.cpp tests/packet.cpp tests/tubus.cpp tests/socket.cpp tests/acceptor.cpp)
+    endif()
 
     add_executable(${TESTS_NAME} ${TESTS_SOURCES})
     target_link_libraries(${TESTS_NAME} OpenSSL::Crypto OpenSSL::SSL)
