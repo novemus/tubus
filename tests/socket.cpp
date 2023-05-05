@@ -17,7 +17,7 @@
 
 BOOST_AUTO_TEST_SUITE(tubus_socket);
 
-const boost::system::error_code NO_ERROR;
+const boost::system::error_code NONE_ERROR;
 
 BOOST_AUTO_TEST_CASE(core)
 {
@@ -41,7 +41,7 @@ BOOST_AUTO_TEST_CASE(core)
 
     left.async_accept(re, [&](const boost::system::error_code& error)
     {
-        BOOST_CHECK_EQUAL(error, NO_ERROR);
+        BOOST_CHECK_EQUAL(error, NONE_ERROR);
         tubus::mutable_buffer mb(stream_source::chunk_size);
 
         size_t size = 0;
@@ -51,12 +51,12 @@ BOOST_AUTO_TEST_CASE(core)
 
         boost::system::error_code ec;
         BOOST_CHECK_EQUAL(stream_source::chunk_size, boost::asio::read(left, mb, ec));
-        BOOST_CHECK_EQUAL(ec, NO_ERROR);
+        BOOST_CHECK_EQUAL(ec, NONE_ERROR);
         BOOST_CHECK_NO_THROW(sink.write_next(mb));
 
         boost::asio::async_read(left, mb, [&, mb](const boost::system::error_code& error, size_t size)
         {
-            BOOST_CHECK_EQUAL(error, NO_ERROR);
+            BOOST_CHECK_EQUAL(error, NONE_ERROR);
             BOOST_CHECK_EQUAL(stream_source::chunk_size, size);
             BOOST_CHECK_NO_THROW(sink.write_next(mb));
 
@@ -66,7 +66,7 @@ BOOST_AUTO_TEST_CASE(core)
 
     right.async_connect(le, [&](const boost::system::error_code& error)
     {
-        BOOST_CHECK_EQUAL(error, NO_ERROR);
+        BOOST_CHECK_EQUAL(error, NONE_ERROR);
 
         size_t size = 0;
         BOOST_CHECK_NO_THROW(size = boost::asio::write(right, source.read_next()));
@@ -74,11 +74,11 @@ BOOST_AUTO_TEST_CASE(core)
 
         boost::system::error_code ec;
         BOOST_CHECK_EQUAL(stream_source::chunk_size, boost::asio::write(right, source.read_next(), ec));
-        BOOST_CHECK_EQUAL(ec, NO_ERROR);
+        BOOST_CHECK_EQUAL(ec, NONE_ERROR);
 
         boost::asio::async_write(right, source.read_next(), [&](const boost::system::error_code& error, size_t size)
         {
-            BOOST_CHECK_EQUAL(error, NO_ERROR);
+            BOOST_CHECK_EQUAL(error, NONE_ERROR);
             BOOST_CHECK_EQUAL(stream_source::chunk_size, size);
 
             wp.set_value();
@@ -92,19 +92,19 @@ BOOST_AUTO_TEST_CASE(core)
 
     boost::system::error_code ec;
     BOOST_REQUIRE_EQUAL(stream_source::chunk_size, right.write_some(tubus::mutable_buffer(stream_source::chunk_size), ec));
-    BOOST_REQUIRE_EQUAL(ec, NO_ERROR);
+    BOOST_REQUIRE_EQUAL(ec, NONE_ERROR);
 
     BOOST_REQUIRE_EQUAL(stream_source::chunk_size / 2, left.read_some(tubus::mutable_buffer(stream_source::chunk_size / 2), ec));
-    BOOST_REQUIRE_EQUAL(ec, NO_ERROR);
+    BOOST_REQUIRE_EQUAL(ec, NONE_ERROR);
 
     BOOST_REQUIRE_EQUAL(stream_source::chunk_size / 2, left.read_some(tubus::mutable_buffer(stream_source::chunk_size), ec));
-    BOOST_REQUIRE_EQUAL(ec, NO_ERROR);
+    BOOST_REQUIRE_EQUAL(ec, NONE_ERROR);
 
     left.shutdown(ec);
-    BOOST_CHECK_EQUAL(ec, NO_ERROR);
+    BOOST_CHECK_EQUAL(ec, NONE_ERROR);
 
     right.shutdown(ec);
-    BOOST_CHECK_EQUAL(ec, NO_ERROR);
+    BOOST_CHECK_EQUAL(ec, NONE_ERROR);
 }
 
 BOOST_AUTO_TEST_CASE(ssl)
@@ -132,10 +132,10 @@ BOOST_AUTO_TEST_CASE(ssl)
 
     boost::system::error_code ec;
     server.lowest_layer().bind(se, ec);
-    BOOST_REQUIRE_EQUAL(ec, NO_ERROR);
+    BOOST_REQUIRE_EQUAL(ec, NONE_ERROR);
 
     client.lowest_layer().bind(ce, ec);
-    BOOST_REQUIRE_EQUAL(ec, NO_ERROR);
+    BOOST_REQUIRE_EQUAL(ec, NONE_ERROR);
 
     std::promise<void> sp;
     std::future<void> sf = sp.get_future();
@@ -148,7 +148,7 @@ BOOST_AUTO_TEST_CASE(ssl)
 
     server.lowest_layer().async_accept(ce, [&](const boost::system::error_code& error)
     {
-        BOOST_CHECK_EQUAL(error, NO_ERROR);
+        BOOST_CHECK_EQUAL(error, NONE_ERROR);
         BOOST_CHECK_NO_THROW(server.handshake(boost::asio::ssl::stream_base::server));
 
         tubus::mutable_buffer mb(stream_source::chunk_size);
@@ -160,18 +160,18 @@ BOOST_AUTO_TEST_CASE(ssl)
 
         boost::system::error_code ec;
         BOOST_CHECK_EQUAL(stream_source::chunk_size, boost::asio::read(server, mb, ec));
-        BOOST_CHECK_EQUAL(ec, NO_ERROR);
+        BOOST_CHECK_EQUAL(ec, NONE_ERROR);
         BOOST_CHECK_NO_THROW(sink.write_next(mb));
 
         boost::asio::async_read(server, mb, [&, mb](const boost::system::error_code& error, size_t size)
         {
-            BOOST_CHECK_EQUAL(error, NO_ERROR);
+            BOOST_CHECK_EQUAL(error, NONE_ERROR);
             BOOST_CHECK_EQUAL(stream_source::chunk_size, size);
             BOOST_CHECK_NO_THROW(sink.write_next(mb));
 
             boost::system::error_code code;
             server.shutdown(code);
-            BOOST_CHECK_EQUAL(code, NO_ERROR);
+            BOOST_CHECK_EQUAL(code, NONE_ERROR);
 
             sp.set_value();
         });
@@ -179,7 +179,7 @@ BOOST_AUTO_TEST_CASE(ssl)
 
     client.lowest_layer().async_connect(se, [&](const boost::system::error_code& error)
     {
-        BOOST_CHECK_EQUAL(error, NO_ERROR);
+        BOOST_CHECK_EQUAL(error, NONE_ERROR);
         BOOST_CHECK_NO_THROW(client.handshake(boost::asio::ssl::stream_base::client));
 
         size_t size = 0;
@@ -188,16 +188,16 @@ BOOST_AUTO_TEST_CASE(ssl)
 
         boost::system::error_code ec;
         BOOST_CHECK_EQUAL(stream_source::chunk_size, boost::asio::write(client, source.read_next(), ec));
-        BOOST_CHECK_EQUAL(ec, NO_ERROR);
+        BOOST_CHECK_EQUAL(ec, NONE_ERROR);
 
         boost::asio::async_write(client, source.read_next(), [&](const boost::system::error_code& error, size_t size)
         {
-            BOOST_CHECK_EQUAL(error, NO_ERROR);
+            BOOST_CHECK_EQUAL(error, NONE_ERROR);
             BOOST_CHECK_EQUAL(stream_source::chunk_size, size);
 
             boost::system::error_code code;
             client.shutdown(code);
-            BOOST_CHECK_EQUAL(code, NO_ERROR);
+            BOOST_CHECK_EQUAL(code, NONE_ERROR);
 
             cp.set_value();
         });
@@ -209,10 +209,10 @@ BOOST_AUTO_TEST_CASE(ssl)
     BOOST_CHECK_EQUAL(source.read(), sink.written());
 
     server.lowest_layer().shutdown(ec);
-    BOOST_CHECK_EQUAL(ec, NO_ERROR);
+    BOOST_CHECK_EQUAL(ec, NONE_ERROR);
 
     client.lowest_layer().shutdown(ec);
-    BOOST_CHECK_EQUAL(ec, NO_ERROR);
+    BOOST_CHECK_EQUAL(ec, NONE_ERROR);
 }
 
 BOOST_AUTO_TEST_CASE(acceptor)
@@ -230,12 +230,12 @@ BOOST_AUTO_TEST_CASE(acceptor)
     tubus::socket peer1(g_reactor.io);
     server.async_accept(peer1, [&](const boost::system::error_code& code)
     {
-        BOOST_CHECK_EQUAL(code, NO_ERROR);
+        BOOST_CHECK_EQUAL(code, NONE_ERROR);
         BOOST_CHECK_EQUAL(peer1.remote_endpoint(), c1);
 
         boost::system::error_code ec;
         BOOST_CHECK_EQUAL(4096, boost::asio::read(peer1, tubus::mutable_buffer(4096), ec));
-        BOOST_CHECK_EQUAL(ec, NO_ERROR);
+        BOOST_CHECK_EQUAL(ec, NONE_ERROR);
         BOOST_CHECK_EQUAL(peer1.available(), 0);
 
         ap1.set_value();
@@ -247,12 +247,12 @@ BOOST_AUTO_TEST_CASE(acceptor)
     tubus::socket peer2(g_reactor.io);
     server.async_accept(peer2, [&](const boost::system::error_code& code)
     {
-        BOOST_CHECK_EQUAL(code, NO_ERROR);
+        BOOST_CHECK_EQUAL(code, NONE_ERROR);
         BOOST_CHECK_EQUAL(peer2.remote_endpoint(), c2);
 
         boost::system::error_code ec;
         BOOST_CHECK_EQUAL(1024, boost::asio::read(peer2, tubus::mutable_buffer(1024), ec));
-        BOOST_CHECK_EQUAL(ec, NO_ERROR);
+        BOOST_CHECK_EQUAL(ec, NONE_ERROR);
         BOOST_CHECK_EQUAL(peer2.available(), 0);
 
         ap2.set_value();

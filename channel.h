@@ -61,6 +61,6 @@ struct TUBUS_CLASS_DECLSPEC channel
 
 typedef std::shared_ptr<channel> channel_ptr;
 
-TUBUS_DECLSPEC channel_ptr create_channel(boost::asio::io_context& io, uint64_t secret = 0) noexcept(true);
+TUBUS_CLASS_DECLSPEC channel_ptr create_channel(boost::asio::io_context& io, uint64_t secret = 0) noexcept(true);
 
 }
