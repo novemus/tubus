@@ -1,9 +1,12 @@
+message("***** tubus *****")
+
 cmake_minimum_required(VERSION 3.10)
 project(tubus VERSION 1.0)
 
 set(SOURCES channel.cpp)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+    set(CMAKE_STATIC_LIBRARY_SUFFIX "-static.lib")
     set(HEADERS buffer.h channel.h socket.h)
     add_definitions(
         -D_CRT_NO_VA_START_VALIDATION
@@ -16,56 +19,74 @@ else()
     set(HEADERS buffer.h channel.h socket.h acceptor.h)
 endif()
 
-find_package(Boost REQUIRED COMPONENTS system thread)
+if(BUILD_TESTING)
+    find_package(Boost REQUIRED COMPONENTS system thread unit_test_framework)
+else()
+    find_package(Boost REQUIRED COMPONENTS system thread)
+endif()
+
+message("* Boost Version: ${Boost_VERSION}")
+message("* Boost Include Dirs: ${Boost_INCLUDE_DIRS}")
+message("* Boost Librariy Dirs: ${Boost_LIBRARY_DIRS}")
+message("* Boost Libraries: ${Boost_LIBRARIES}")
 
 include_directories(${Boost_INCLUDE_DIRS})
 link_directories(${Boost_LIBRARY_DIRS})
 
-option(BUILD_SHARED_LIBS "" ON)
-if (BUILD_SHARED_LIBS)
+if(BUILD_SHARED_LIBS)
    add_definitions(-DTUBUS_EXPORTS)
    add_library(${PROJECT_NAME} SHARED ${SOURCES})
 else()
    add_library(${PROJECT_NAME} STATIC ${SOURCES})
 endif()
 
+set_target_properties(${PROJECT_NAME} PROPERTIES DEBUG_POSTFIX "d")
+
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -Wall")
     set(THREADS_PREFER_PTHREAD_FLAG ON)
     find_package(Threads REQUIRED)
     target_link_libraries(${PROJECT_NAME} PUBLIC Threads::Threads)
-    target_link_libraries(${PROJECT_NAME} PUBLIC ${Boost_LIBRARIES})
+    target_link_libraries(${PROJECT_NAME} PUBLIC Boost::system Boost::thread)
 endif()
 
-include(GNUInstallDirs)
-include(CMakePackageConfigHelpers)
+if(NOT tubus_SKIP_INSTALL_TARGET)
+    include(GNUInstallDirs)
+    include(CMakePackageConfigHelpers)
 
-write_basic_package_version_file(
-    "${CMAKE_CURRENT_BINARY_DIR}/tubus-config-version.cmake"
-    VERSION "${CMAKE_PROJECT_VERSION}"
-    COMPATIBILITY AnyNewerVersion
-)
+    write_basic_package_version_file(
+        "${CMAKE_CURRENT_BINARY_DIR}/tubus-config-version.cmake"
+        VERSION "${CMAKE_PROJECT_VERSION}"
+        COMPATIBILITY AnyNewerVersion)
 
-if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
-    install(TARGETS ${PROJECT_NAME} DESTINATION ${PROJECT_NAME}-${${PROJECT_NAME}_VERSION}/lib)
-    install(FILES ${HEADERS} DESTINATION ${PROJECT_NAME}-${${PROJECT_NAME}_VERSION}/include)
-    configure_package_config_file(${CMAKE_CURRENT_SOURCE_DIR}/tubus-config.cmake.in "${CMAKE_CURRENT_BINARY_DIR}/tubus-config.cmake" INSTALL_DESTINATION ${PROJECT_NAME}-${${PROJECT_NAME}_VERSION}/cmake)
-    install(FILES "${CMAKE_CURRENT_BINARY_DIR}/tubus-config.cmake" "${CMAKE_CURRENT_BINARY_DIR}/tubus-config-version.cmake" DESTINATION ${PROJECT_NAME}-${${PROJECT_NAME}_VERSION}/cmake)
-else()
-    install(TARGETS ${PROJECT_NAME} DESTINATION lib)
-    install(FILES ${HEADERS} DESTINATION include)
-    configure_package_config_file(${CMAKE_CURRENT_SOURCE_DIR}/tubus-config.cmake.in "${CMAKE_CURRENT_BINARY_DIR}/tubus-config.cmake" INSTALL_DESTINATION cmake)
-    install(FILES "${CMAKE_CURRENT_BINARY_DIR}/tubus-config.cmake" "${CMAKE_CURRENT_BINARY_DIR}/tubus-config-version.cmake" DESTINATION cmake)
+    if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+        install(TARGETS ${PROJECT_NAME} DESTINATION ${PROJECT_NAME}-${${PROJECT_NAME}_VERSION}/lib)
+        install(FILES ${HEADERS} DESTINATION ${PROJECT_NAME}-${${PROJECT_NAME}_VERSION}/include)
+        configure_package_config_file(${CMAKE_CURRENT_SOURCE_DIR}/tubus-config.cmake.in "${CMAKE_CURRENT_BINARY_DIR}/tubus-config.cmake" INSTALL_DESTINATION ${PROJECT_NAME}-${${PROJECT_NAME}_VERSION}/cmake)
+        install(FILES "${CMAKE_CURRENT_BINARY_DIR}/tubus-config.cmake" "${CMAKE_CURRENT_BINARY_DIR}/tubus-config-version.cmake" DESTINATION ${PROJECT_NAME}-${${PROJECT_NAME}_VERSION}/cmake)
+        if(BUILD_SHARED_LIBS AND CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+            install(FILES $<TARGET_PDB_FILE:${PROJECT_NAME}> CONFIGURATIONS "RelWithDebInfo" DESTINATION ${PROJECT_NAME}-${${PROJECT_NAME}_VERSION}/lib)
+        endif()
+    else()
+        install(TARGETS ${PROJECT_NAME} DESTINATION lib)
+        install(FILES ${HEADERS} DESTINATION include)
+        configure_package_config_file(${CMAKE_CURRENT_SOURCE_DIR}/tubus-config.cmake.in "${CMAKE_CURRENT_BINARY_DIR}/tubus-config.cmake" INSTALL_DESTINATION cmake)
+        install(FILES "${CMAKE_CURRENT_BINARY_DIR}/tubus-config.cmake" "${CMAKE_CURRENT_BINARY_DIR}/tubus-config-version.cmake" DESTINATION cmake)
+        if(BUILD_SHARED_LIBS AND CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+            install(FILES $<TARGET_PDB_FILE:${PROJECT_NAME}> CONFIGURATIONS "RelWithDebInfo" DESTINATION lib)
+        endif()
+    endif()
 endif()
 
-option(BUILD_TESTING "" OFF)
 if(BUILD_TESTING)
-    
-    find_package(Boost REQUIRED COMPONENTS unit_test_framework)
     find_package(OpenSSL REQUIRED)
+    
+    message("* OpenSSL Version: ${OPENSSL_VERSION}")
+    message("* OpenSSL Include Dir: ${OPENSSL_INCLUDE_DIR}")
+    message("* OpenSSL Libraries: ${OPENSSL_LIBRARIES}")
 
     set(TESTS_NAME tubus_ut)
-    
+
     if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
         set(TESTS_SOURCES channel.cpp tests/buffer.cpp tests/packet.cpp tests/tubus.cpp tests/socket.cpp)
     else()
@@ -77,9 +98,11 @@ if(BUILD_TESTING)
 
     if(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
         target_link_libraries(${TESTS_NAME} Threads::Threads)
-        target_link_libraries(${TESTS_NAME} ${Boost_LIBRARIES})
+        target_link_libraries(${TESTS_NAME} Boost::system Boost::thread Boost::unit_test_framework)
     endif()
 
     enable_testing()
     add_test(NAME ${TESTS_NAME} COMMAND ${TESTS_NAME} WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/tests)
 endif()
+
+message("***** tubus done *****")
