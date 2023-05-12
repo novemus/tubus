@@ -617,7 +617,7 @@ class transport : public channel, public std::enable_shared_from_this<transport>
         uint64_t writable() const noexcept(true)
         {
             return m_range > m_buffer.tail() 
-                ? std::min(m_range - m_buffer.tail(), send_buffer_size() - m_buffer.tail() + m_buffer.head())
+                ? std::min(m_range - m_buffer.tail(), send_buffer_size() - (m_buffer.tail() - m_buffer.head()))
                 : 0;
         }
 
