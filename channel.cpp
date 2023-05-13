@@ -24,6 +24,46 @@
 #include <boost/date_time/posix_time/posix_time_types.hpp>
 #include <boost/date_time/posix_time/posix_time_io.hpp>
 
+#ifndef TUBUS_MAX_PACKET_SIZE
+#define TUBUS_MAX_PACKET_SIZE 1432u
+#endif
+
+#ifndef TUBUS_PING_TIMEOUT
+#define TUBUS_PING_TIMEOUT 30l
+#endif
+
+#ifndef TUBUS_RESEND_TIMEOUT
+#define TUBUS_RESEND_TIMEOUT 100l
+#endif
+
+#ifndef TUBUS_SHUTDOWN_TIMEOUT
+#define TUBUS_SHUTDOWN_TIMEOUT 2000l
+#endif
+
+#ifndef TUBUS_CONNECT_TIMEOUT
+#define TUBUS_CONNECT_TIMEOUT 30l
+#endif
+
+#ifndef TUBUS_ACCEPT_TIMEOUT
+#define TUBUS_ACCEPT_TIMEOUT 30l
+#endif
+
+#ifndef TUBUS_SNIPPET_FLIGHT
+#define TUBUS_SNIPPET_FLIGHT 48u
+#endif
+
+#ifndef TUBUS_MOVE_ATTEMPTS
+#define TUBUS_MOVE_ATTEMPTS 32l
+#endif
+
+#ifndef TUBUS_RECEIVE_BUFFER_SIZE
+#define TUBUS_RECEIVE_BUFFER_SIZE 5ull * 1024 * 1024
+#endif
+
+#ifndef TUBUS_SEND_BUFFER_SIZE
+#define TUBUS_SEND_BUFFER_SIZE 5ull * 1024 * 1024
+#endif
+
 namespace tubus {
 
 mutable_buffer create_buffer(size_t size) noexcept(true)
@@ -67,49 +107,61 @@ class transport : public channel, public std::enable_shared_from_this<transport>
 
     inline static size_t max_packet_size() noexcept(true)
     {
-        static size_t s_size(getenv("TUBUS_MAX_PACKET_SIZE", 1432u));
+        static size_t s_size(getenv("TUBUS_MAX_PACKET_SIZE", TUBUS_MAX_PACKET_SIZE));
         return s_size;
     }
 
     inline static boost::posix_time::time_duration ping_timeout() noexcept(true)
     {
-        static boost::posix_time::seconds s_timeout(getenv("TUBUS_PING_TIMEOUT", 30l));
+        static boost::posix_time::seconds s_timeout(getenv("TUBUS_PING_TIMEOUT", TUBUS_PING_TIMEOUT));
         return s_timeout;
     }
 
     inline static boost::posix_time::time_duration resend_timeout() noexcept(true)
     {
-        static boost::posix_time::milliseconds s_timeout(getenv("TUBUS_RESEND_TIMEOUT", 100l));
+        static boost::posix_time::milliseconds s_timeout(getenv("TUBUS_RESEND_TIMEOUT", TUBUS_RESEND_TIMEOUT));
         return s_timeout;
     }
 
     inline static boost::posix_time::time_duration shutdown_timeout() noexcept(true)
     {
-        static boost::posix_time::milliseconds s_timeout(getenv("TUBUS_SHUTDOWN_TIMEOUT", 2000l));
+        static boost::posix_time::milliseconds s_timeout(getenv("TUBUS_SHUTDOWN_TIMEOUT", TUBUS_SHUTDOWN_TIMEOUT));
+        return s_timeout;
+    }
+
+    inline static boost::posix_time::time_duration connect_timeout() noexcept(true)
+    {
+        static boost::posix_time::seconds s_timeout(getenv("TUBUS_CONNECT_TIMEOUT", TUBUS_CONNECT_TIMEOUT));
+        return s_timeout;
+    }
+
+    inline static boost::posix_time::time_duration accept_timeout() noexcept(true)
+    {
+        static boost::posix_time::seconds s_timeout(getenv("TUBUS_ACCEPT_TIMEOUT", TUBUS_ACCEPT_TIMEOUT));
         return s_timeout;
     }
 
     inline static size_t snippet_flight() noexcept(true)
     {
-        static size_t s_flight(getenv("TUBUS_SNIPPET_FLIGHT", 48u));
+        static size_t s_flight(getenv("TUBUS_SNIPPET_FLIGHT", TUBUS_SNIPPET_FLIGHT));
         return s_flight;
     }
 
     inline static size_t move_attempts() noexcept(true)
     {
-        static size_t s_attempts(getenv("TUBUS_MOVE_ATTEMPTS", 32u));
+        static size_t s_attempts(getenv("TUBUS_MOVE_ATTEMPTS", TUBUS_MOVE_ATTEMPTS));
         return s_attempts;
     }
 
     inline static size_t receive_buffer_size() noexcept(true)
     {
-        static size_t s_size(getenv("TUBUS_RECEIVE_BUFFER_SIZE", 5ull * 1024 * 1024));
+        static size_t s_size(getenv("TUBUS_RECEIVE_BUFFER_SIZE", TUBUS_RECEIVE_BUFFER_SIZE));
         return s_size;
     }
 
     inline static size_t send_buffer_size() noexcept(true)
     {
-        static size_t s_size(getenv("TUBUS_SEND_BUFFER_SIZE", 5ull * 1024 * 1024));
+        static size_t s_size(getenv("TUBUS_SEND_BUFFER_SIZE", TUBUS_SEND_BUFFER_SIZE));
         return s_size;
     }
 
@@ -365,7 +417,7 @@ class transport : public channel, public std::enable_shared_from_this<transport>
             m_local = make_pin();
             on_connect = handler;
 
-            m_seen = boost::posix_time::microsec_clock::universal_time();
+            m_seen = boost::posix_time::microsec_clock::universal_time() + connect_timeout() - ping_timeout();
             m_status = state::connecting;
 
             m_jobs.emplace(section::link, m_seen);
@@ -388,7 +440,7 @@ class transport : public channel, public std::enable_shared_from_this<transport>
             m_local = make_pin();
             on_connect = handler;
 
-            m_seen = boost::posix_time::microsec_clock::universal_time();
+            m_seen = boost::posix_time::microsec_clock::universal_time() + accept_timeout() - ping_timeout();
             m_status = state::accepting;
 
             return true;
