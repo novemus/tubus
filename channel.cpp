@@ -236,7 +236,7 @@ class transport : public channel, public std::enable_shared_from_this<transport>
                 {
                     case section::link:
                     {
-                        m_jobs.emplace(section::link | section::echo, m_seen);
+                        m_jobs.emplace(section::link | section::echo, boost::posix_time::min_date_time);
 
                         if (m_status == state::accepting)
                         {
@@ -249,6 +249,7 @@ class transport : public channel, public std::enable_shared_from_this<transport>
                         if (m_status == state::connecting)
                         {
                             m_status = state::linked;
+                            m_dead = boost::posix_time::max_date_time;
                             m_remote = pack.pin();
 
                             m_jobs.erase(section::link);
@@ -261,7 +262,7 @@ class transport : public channel, public std::enable_shared_from_this<transport>
                     }
                     case section::tear:
                     {
-                        m_jobs.emplace(section::tear | section::echo, m_seen);
+                        m_jobs.emplace(section::tear | section::echo, boost::posix_time::min_date_time);
 
                         if (m_status == state::linked)
                         {
@@ -284,7 +285,7 @@ class transport : public channel, public std::enable_shared_from_this<transport>
                     } 
                     case section::ping:
                     {
-                        m_jobs.emplace(section::ping | section::echo, m_seen);
+                        m_jobs.emplace(section::ping | section::echo, boost::posix_time::min_date_time);
                         break;
                     }
                     case section::flag::ping | section::flag::echo:
@@ -310,7 +311,7 @@ class transport : public channel, public std::enable_shared_from_this<transport>
             pack.set<uint32_t>(packet::header_size, 0);
 
             auto now = boost::posix_time::microsec_clock::universal_time();
-            if (now > m_dead || m_seen + ping_timeout() < now - boost::posix_time::seconds(5))
+            if ((m_status == state::linked && m_seen + ping_timeout() < now - boost::posix_time::seconds(5)) || now > m_dead)
             {
                 m_io.post(boost::bind(on_error, boost::asio::error::interrupted));
                 return;
@@ -336,6 +337,7 @@ class transport : public channel, public std::enable_shared_from_this<transport>
                     if (m_status == state::accepting)
                     {
                         m_status = state::linked;
+                        m_dead = boost::posix_time::max_date_time;
                         m_io.post(boost::bind(on_connect, boost::system::error_code()));
                         on_connect = 0;
                     }
@@ -388,15 +390,14 @@ class transport : public channel, public std::enable_shared_from_this<transport>
                 return false;
             }
 
-            auto now = boost::posix_time::microsec_clock::universal_time();
             on_shutdown = handler;
 
-            m_dead = now + shutdown_timeout();
+            m_dead = boost::posix_time::microsec_clock::universal_time() + shutdown_timeout();
             
             if (m_status != state::tearing)
             {
                 m_status = state::shutting;
-                m_jobs.emplace(section::tear, now);
+                m_jobs.emplace(section::tear, boost::posix_time::min_date_time);
             }
 
             return true;
@@ -417,10 +418,10 @@ class transport : public channel, public std::enable_shared_from_this<transport>
             m_local = make_pin();
             on_connect = handler;
 
-            m_seen = boost::posix_time::microsec_clock::universal_time() + connect_timeout() - ping_timeout();
+            m_dead = boost::posix_time::microsec_clock::universal_time() + connect_timeout();
             m_status = state::connecting;
 
-            m_jobs.emplace(section::link, m_seen);
+            m_jobs.emplace(section::link, boost::posix_time::min_date_time);
 
             return true;
         }
@@ -440,7 +441,7 @@ class transport : public channel, public std::enable_shared_from_this<transport>
             m_local = make_pin();
             on_connect = handler;
 
-            m_seen = boost::posix_time::microsec_clock::universal_time() + accept_timeout() - ping_timeout();
+            m_dead = boost::posix_time::microsec_clock::universal_time() + accept_timeout();
             m_status = state::accepting;
 
             return true;
@@ -1112,7 +1113,9 @@ protected:
         }
         else
         {
-            auto timeout = m_connector.deffered() || m_istreamer.deffered() || m_ostreamer.deffered() ? resend_timeout() : ping_timeout();
+            auto timeout = status == state::accepting
+                ? accept_timeout() : (m_connector.deffered() || m_istreamer.deffered() || m_ostreamer.deffered())
+                ? resend_timeout() : ping_timeout();
 
             m_timer.expires_from_now(timeout);
             m_timer.async_wait([weak](const boost::system::error_code& error)
