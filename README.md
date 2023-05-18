@@ -137,7 +137,7 @@ The library depends on the `boost`. To build tests, the `openssl` is required.
 
 ```console
 cd ~
-git clone git@github.com:novemus/tubus.git
+git clone https://github.com/novemus/tubus.git
 cd ~/tubus
 cmake -B ./build [-DBOOST_ROOT=...] [-DBUILD_SHARED_LIBS=ON] [-DBUILD_TESTING=ON [-DOPENSSL_ROOT_DIR=...]]
 cmake --build ./build --config Release --target tubus [tubus_ut]
