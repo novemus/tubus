@@ -23,7 +23,6 @@ class acceptor
     boost::asio::io_context& m_asio;
     boost::asio::ip::udp::socket m_socket;
     boost::asio::ip::udp::endpoint m_local;
-    uint64_t m_secret;
 
     acceptor(const acceptor&) = delete;
     acceptor& operator=(const acceptor&) = delete;
@@ -32,15 +31,14 @@ public:
 
     typedef boost::asio::io_context::executor_type executor_type;
 
-    acceptor(boost::asio::io_context& io, uint64_t secret = 0) noexcept(true) 
+    acceptor(boost::asio::io_context& io) noexcept(true) 
         : m_asio(io)
         , m_socket(io)
-        , m_secret(secret)
     {
     }
 
-    acceptor(boost::asio::io_context& io, const endpoint& local, uint64_t secret = 0) noexcept(false) 
-        : acceptor(io, secret)
+    acceptor(boost::asio::io_context& io, const endpoint& local) noexcept(false) 
+        : acceptor(io)
     {
         open(local);
     }
@@ -224,7 +222,7 @@ public:
     void async_accept(socket& peer, accept_handler&& callback) noexcept(true)
     {
         auto remote = std::make_shared<endpoint>();
-        m_socket.async_receive_from(mutable_buffer(), *remote, [&peer, local = m_local, remote, secret = m_secret, callback](const boost::system::error_code& error, size_t size)
+        m_socket.async_receive_from(mutable_buffer(), *remote, [&peer, local = m_local, remote, callback](const boost::system::error_code& error, size_t size)
         {
             if (error)
             {

@@ -19,6 +19,9 @@
 #include <WinSock2.h>
 #define htobe64 htonll
 #define be64toh ntohll
+#elif __APPLE__
+#define htobe64 htonll
+#define be64toh ntohll
 #endif
 
 namespace tubus {

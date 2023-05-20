@@ -42,12 +42,16 @@ endif()
 
 set_target_properties(${PROJECT_NAME} PROPERTIES DEBUG_POSTFIX "d")
 
-if(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU" OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -Wall")
     set(THREADS_PREFER_PTHREAD_FLAG ON)
     find_package(Threads REQUIRED)
     target_link_libraries(${PROJECT_NAME} PUBLIC Threads::Threads)
     target_link_libraries(${PROJECT_NAME} PUBLIC Boost::system Boost::thread)
+endif()
+
+if(APPLE AND Boost_USE_STATIC_LIBS)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fvisibility=hidden")
 endif()
 
 if(NOT tubus_SKIP_INSTALL_TARGET)
@@ -96,7 +100,7 @@ if(BUILD_TESTING)
     add_executable(${TESTS_NAME} ${TESTS_SOURCES})
     target_link_libraries(${TESTS_NAME} OpenSSL::Crypto OpenSSL::SSL)
 
-    if(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+    if(CMAKE_CXX_COMPILER_ID MATCHES "GNU" OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
         target_link_libraries(${TESTS_NAME} Threads::Threads)
         target_link_libraries(${TESTS_NAME} Boost::system Boost::thread Boost::unit_test_framework)
     endif()

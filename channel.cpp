@@ -572,7 +572,7 @@ class transport : public channel, public std::enable_shared_from_this<transport>
 
                 auto handle = m_buffer.head();
                 auto buffer = m_buffer.pull(
-                    std::min(limit, sect.size() - section::header_size - snippet::handle_size)
+                    std::min<uint64_t>(limit, sect.size() - section::header_size - snippet::handle_size)
                     );
 
                 sect.snippet(handle, buffer);
