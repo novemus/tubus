@@ -197,7 +197,7 @@ public:
     void accept(socket& peer, boost::system::error_code& ec) noexcept(true)
     {
         endpoint remote;
-        m_socket.receive_from(mutable_buffer(), remote, 0, ec);
+        m_socket.receive_from(mutable_buffer(1), remote, 0, ec);
 
         if (ec)
             return;
@@ -222,14 +222,14 @@ public:
     void async_accept(socket& peer, accept_handler&& callback) noexcept(true)
     {
         auto remote = std::make_shared<endpoint>();
-        m_socket.async_receive_from(mutable_buffer(), *remote, [&peer, local = m_local, remote, callback](const boost::system::error_code& error, size_t size)
+        m_socket.async_receive_from(mutable_buffer(1), *remote, [&peer, local = m_local, remote, callback](const boost::system::error_code& error, size_t size)
         {
             if (error)
             {
                 callback(error);
                 return;
             }
-            
+
             boost::system::error_code code;
             peer.open(local, code);
 

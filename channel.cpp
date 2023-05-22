@@ -1261,7 +1261,7 @@ public:
             return;
         }
 
-        if (m_connector.accept(std::move(handler)))
+        if (m_connector.accept(handler))
         {
             run();
         }
