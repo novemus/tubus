@@ -62,11 +62,11 @@ struct section : public mutable_buffer
         set<uint16_t>(sizeof(uint16_t), 0);
     }
 
-    void cursor(uint16_t type, uint64_t handle) noexcept(true)
+    void numeral(uint16_t type, uint64_t value) noexcept(true)
     {
         set<uint16_t>(0, htons(type));
-        set<uint16_t>(sizeof(uint16_t), htons(sizeof(handle)));
-        set<uint64_t>(header_size, htobe64(handle));
+        set<uint16_t>(sizeof(uint16_t), htons(sizeof(value)));
+        set<uint64_t>(header_size, htobe64(value));
     }
 
     void snippet(uint64_t handle, const const_buffer& data) noexcept(true)
@@ -98,15 +98,15 @@ struct section : public mutable_buffer
     }
 };
 
-struct cursor : public mutable_buffer
+struct numeral : public mutable_buffer
 {
-    static constexpr size_t handle_size = sizeof(uint64_t);
+    static constexpr size_t value_size = sizeof(uint64_t);
     
-    explicit cursor(const mutable_buffer& buf) noexcept(true) : mutable_buffer(buf)
+    explicit numeral(const mutable_buffer& buf) noexcept(true) : mutable_buffer(buf)
     {
     }
 
-    uint64_t handle() const noexcept(true)
+    uint64_t value() const noexcept(true)
     {
         return be64toh(get<uint64_t>(0));
     }
@@ -134,7 +134,7 @@ struct snippet : public mutable_buffer
 struct packet : public mutable_buffer
 {
     static constexpr size_t packet_sign = 0x0909;
-    static constexpr size_t packet_version = 0x0101;
+    static constexpr size_t packet_version = 0x0102;
     static constexpr size_t header_size = 16;
 
     packet(const mutable_buffer& buf) noexcept(true) : mutable_buffer(buf)

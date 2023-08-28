@@ -66,6 +66,8 @@
 
 namespace tubus {
 
+const boost::posix_time::ptime g_zero_time(boost::gregorian::date(1970, 1, 1));
+
 mutable_buffer create_buffer(size_t size) noexcept(true)
 {
     static std::mutex s_mutex;
@@ -236,7 +238,7 @@ class transport : public channel, public std::enable_shared_from_this<transport>
                 {
                     case section::link:
                     {
-                        m_jobs.emplace(section::link | section::echo, boost::posix_time::min_date_time);
+                        m_jobs.emplace(section::link | section::echo, g_zero_time);
 
                         if (m_status == state::accepting)
                         {
@@ -253,7 +255,7 @@ class transport : public channel, public std::enable_shared_from_this<transport>
                             m_remote = pack.pin();
 
                             m_jobs.erase(section::link);
-                            m_jobs.emplace(section::ping, m_seen + ping_timeout());
+                            m_jobs.emplace(section::ping, g_zero_time);
 
                             m_io.post(boost::bind(on_connect, boost::system::error_code()));
                             on_connect = 0;
@@ -262,7 +264,7 @@ class transport : public channel, public std::enable_shared_from_this<transport>
                     }
                     case section::tear:
                     {
-                        m_jobs.emplace(section::tear | section::echo, boost::posix_time::min_date_time);
+                        m_jobs.emplace(section::tear | section::echo, g_zero_time);
 
                         if (m_status == state::linked)
                         {
@@ -285,7 +287,8 @@ class transport : public channel, public std::enable_shared_from_this<transport>
                     } 
                     case section::ping:
                     {
-                        m_jobs.emplace(section::ping | section::echo, boost::posix_time::min_date_time);
+                        numeral ping(sect.value());
+                        m_jobs.emplace(section::ping | section::echo, g_zero_time + boost::posix_time::microseconds(ping.value()));
                         break;
                     }
                     case section::flag::ping | section::flag::echo:
@@ -322,14 +325,25 @@ class transport : public channel, public std::enable_shared_from_this<transport>
             {
                 auto iter = std::find_if(m_jobs.begin(), m_jobs.end(), [now](const auto& item)
                 {
-                    return item.second < now;
+                    return (item.first & section::echo) || item.second < now;
                 });
 
                 if (iter == m_jobs.end())
                     break;
  
-                sect.simple(iter->first);
-                
+                if (iter->first == section::ping)
+                {
+                    sect.numeral(section::ping, (now - g_zero_time).total_microseconds());
+                }
+                else if (iter->first == (section::ping | section::echo))
+                {
+                    sect.numeral(section::ping, (iter->second - g_zero_time).total_microseconds());
+                }
+                else
+                {
+                    sect.simple(iter->first);
+                }
+
                 if (iter->first == (section::link | section::echo))
                 {
                     m_jobs.erase(iter);
@@ -397,7 +411,7 @@ class transport : public channel, public std::enable_shared_from_this<transport>
             if (m_status != state::tearing)
             {
                 m_status = state::shutting;
-                m_jobs.emplace(section::tear, boost::posix_time::min_date_time);
+                m_jobs.emplace(section::tear, g_zero_time);
             }
 
             return true;
@@ -421,7 +435,7 @@ class transport : public channel, public std::enable_shared_from_this<transport>
             m_dead = boost::posix_time::microsec_clock::universal_time() + connect_timeout();
             m_status = state::connecting;
 
-            m_jobs.emplace(section::link, boost::posix_time::min_date_time);
+            m_jobs.emplace(section::link, g_zero_time);
 
             return true;
         }
@@ -510,8 +524,8 @@ class transport : public channel, public std::enable_shared_from_this<transport>
             {
                 if (type == (section::move | section::echo))
                 {
-                    cursor curs(sect.value());
-                    m_moves.erase(curs.handle());
+                    numeral curs(sect.value());
+                    m_moves.erase(curs.value());
 
                     auto cursor = m_moves.empty() ? m_buffer.head() : m_moves.begin()->first;
 
@@ -524,9 +538,9 @@ class transport : public channel, public std::enable_shared_from_this<transport>
                 }
                 else if (type == section::edge)
                 {
-                    cursor curs(sect.value());
+                    numeral curs(sect.value());
 
-                    m_range = std::max(m_range, curs.handle());
+                    m_range = std::max(m_range, curs.value());
                     m_acks.emplace(m_range);
                 }
 
@@ -582,9 +596,9 @@ class transport : public channel, public std::enable_shared_from_this<transport>
             }
 
             auto iter = m_acks.begin();
-            while (iter != m_acks.end() && sect.size() >= section::header_size + cursor::handle_size)
+            while (iter != m_acks.end() && sect.size() >= section::header_size + numeral::value_size)
             {
-                sect.cursor(section::edge|section::echo, *iter);
+                sect.numeral(section::edge|section::echo, *iter);
                 sect.advance();
 
                 iter = m_acks.erase(iter);
@@ -772,8 +786,8 @@ class transport : public channel, public std::enable_shared_from_this<transport>
                 }
                 else if (type == (section::edge | section::echo))
                 {
-                    cursor curs(sect.value());
-                    if (m_edge.range == curs.handle())
+                    numeral curs(sect.value());
+                    if (m_edge.range == curs.value())
                     {
                         m_edge.time = boost::posix_time::max_date_time;
                     }
@@ -791,20 +805,20 @@ class transport : public channel, public std::enable_shared_from_this<transport>
             section sect = pack.stub();
 
             auto iter = m_acks.begin();
-            while (iter != m_acks.end() && sect.size() >= section::header_size + cursor::handle_size)
+            while (iter != m_acks.end() && sect.size() >= section::header_size + numeral::value_size)
             {
-                sect.cursor(section::move|section::echo, *iter);
+                sect.numeral(section::move|section::echo, *iter);
                 sect.advance();
 
                 iter = m_acks.erase(iter);
             }
             
-            if (sect.size() >= section::header_size + cursor::handle_size)
+            if (sect.size() >= section::header_size + numeral::value_size)
             {
                 auto now = boost::posix_time::microsec_clock::universal_time();
                 if (m_edge.time <= now)
                 {
-                    sect.cursor(section::edge, m_edge.range);
+                    sect.numeral(section::edge, m_edge.range);
                     sect.advance();
 
                     m_edge.time = now + resend_timeout();
@@ -861,7 +875,7 @@ class transport : public channel, public std::enable_shared_from_this<transport>
                     if (iter->read > 0)
                     {
                         m_edge.range += iter->read;
-                        m_edge.time = boost::posix_time::min_date_time;
+                        m_edge.time = g_zero_time;
                     }
 
                     m_io.post(boost::bind(iter->callback, boost::system::error_code(), iter->read));
@@ -975,7 +989,7 @@ class transport : public channel, public std::enable_shared_from_this<transport>
 
             edge_job() noexcept(true) 
                 : range(receive_buffer_size())
-                , time(boost::posix_time::min_date_time)
+                , time(g_zero_time)
             {}
         };
 

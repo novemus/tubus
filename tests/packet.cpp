@@ -13,15 +13,15 @@
 
 BOOST_AUTO_TEST_SUITE(packet);
 
-BOOST_AUTO_TEST_CASE(cursor)
+BOOST_AUTO_TEST_CASE(numeral)
 {
     tubus::mutable_buffer mb(8);
     std::memset(mb.data(), 0, mb.size());
 
-    auto curs = tubus::cursor(mb);
+    auto curs = tubus::numeral(mb);
 
     BOOST_CHECK_EQUAL(curs.size(), 8);
-    BOOST_CHECK_EQUAL(curs.handle(), 0);
+    BOOST_CHECK_EQUAL(curs.value(), 0);
 }
 
 BOOST_AUTO_TEST_CASE(snippet)
@@ -43,16 +43,16 @@ BOOST_AUTO_TEST_CASE(section)
 
     BOOST_CHECK_EQUAL(sect.size(), 1024);
 
-    sect.cursor(tubus::section::move | tubus::section::echo, 12345);
+    sect.numeral(tubus::section::move | tubus::section::echo, 12345);
 
     BOOST_CHECK_EQUAL(sect.type(), tubus::section::move | tubus::section::echo);
-    BOOST_CHECK_EQUAL(sect.length(), tubus::cursor::handle_size);
-    BOOST_CHECK_EQUAL(sect.value().size(), tubus::cursor::handle_size);
+    BOOST_CHECK_EQUAL(sect.length(), tubus::numeral::value_size);
+    BOOST_CHECK_EQUAL(sect.value().size(), tubus::numeral::value_size);
 
-    tubus::cursor curs(sect.value());
+    tubus::numeral curs(sect.value());
 
-    BOOST_CHECK_EQUAL(curs.size(), tubus::cursor::handle_size);
-    BOOST_CHECK_EQUAL(curs.handle(), 12345);
+    BOOST_CHECK_EQUAL(curs.size(), tubus::numeral::value_size);
+    BOOST_CHECK_EQUAL(curs.value(), 12345);
 
     sect.advance();
 
@@ -108,7 +108,7 @@ BOOST_AUTO_TEST_CASE(packet)
     sect.snippet(12345, cb);
 
     sect.advance();
-    sect.cursor(tubus::section::move | tubus::section::echo, 12345);
+    sect.numeral(tubus::section::move | tubus::section::echo, 12345);
 
     sect.advance();
     sect.simple(tubus::section::link);
@@ -118,7 +118,7 @@ BOOST_AUTO_TEST_CASE(packet)
 
     pack.trim();
 
-    BOOST_CHECK_EQUAL(pack.size(), tubus::packet::header_size + tubus::section::header_size * 3 + tubus::cursor::handle_size + tubus::snippet::handle_size + cb.size());
+    BOOST_CHECK_EQUAL(pack.size(), tubus::packet::header_size + tubus::section::header_size * 3 + tubus::numeral::value_size + tubus::snippet::handle_size + cb.size());
 
     sect = pack.body();
     tubus::snippet snip(sect.value());
@@ -128,10 +128,10 @@ BOOST_AUTO_TEST_CASE(packet)
     BOOST_CHECK_EQUAL(std::memcmp(snip.fragment().data(), cb.data(), cb.size()), 0);
 
     sect.advance();
-    tubus::cursor curs(sect.value());
+    tubus::numeral curs(sect.value());
 
-    BOOST_CHECK_EQUAL(curs.size(), tubus::cursor::handle_size);
-    BOOST_CHECK_EQUAL(curs.handle(), 12345);
+    BOOST_CHECK_EQUAL(curs.size(), tubus::numeral::value_size);
+    BOOST_CHECK_EQUAL(curs.value(), 12345);
 
     sect.advance();
 
