@@ -32,10 +32,6 @@
 #define TUBUS_PING_TIMEOUT 30l
 #endif
 
-#ifndef TUBUS_RESEND_TIMEOUT
-#define TUBUS_RESEND_TIMEOUT 100l
-#endif
-
 #ifndef TUBUS_SHUTDOWN_TIMEOUT
 #define TUBUS_SHUTDOWN_TIMEOUT 2000l
 #endif
@@ -119,12 +115,6 @@ class transport : public channel, public std::enable_shared_from_this<transport>
         return s_timeout;
     }
 
-    inline static boost::posix_time::time_duration resend_timeout() noexcept(true)
-    {
-        static boost::posix_time::milliseconds s_timeout(getenv("TUBUS_RESEND_TIMEOUT", TUBUS_RESEND_TIMEOUT));
-        return s_timeout;
-    }
-
     inline static boost::posix_time::time_duration shutdown_timeout() noexcept(true)
     {
         static boost::posix_time::milliseconds s_timeout(getenv("TUBUS_SHUTDOWN_TIMEOUT", TUBUS_SHUTDOWN_TIMEOUT));
@@ -176,8 +166,9 @@ class transport : public channel, public std::enable_shared_from_this<transport>
             return pin > 0 ? pin : make_pin();
         };
 
-        connector(boost::asio::io_context& io) noexcept(true)
+        connector(boost::asio::io_context& io, boost::posix_time::time_duration& repeat) noexcept(true)
             : m_io(io)
+            , m_repeat(repeat)
             , m_status(state::neither)
             , m_local(0)
             , m_remote(0)
@@ -293,6 +284,11 @@ class transport : public channel, public std::enable_shared_from_this<transport>
                     }
                     case section::flag::ping | section::flag::echo:
                     {
+                        numeral ping(sect.value());
+
+                        size_t rtt = (m_seen - g_zero_time).total_microseconds() - ping.value();
+                        m_repeat = boost::posix_time::microseconds(std::max(rtt * 2ul, 10000ul));
+
                         m_jobs.erase(section::ping);
                         m_jobs.emplace(section::ping, m_seen + ping_timeout());
                         break;
@@ -337,7 +333,7 @@ class transport : public channel, public std::enable_shared_from_this<transport>
                 }
                 else if (iter->first == (section::ping | section::echo))
                 {
-                    sect.numeral(section::ping, (iter->second - g_zero_time).total_microseconds());
+                    sect.numeral(section::ping | section::echo, (iter->second - g_zero_time).total_microseconds());
                 }
                 else
                 {
@@ -373,7 +369,7 @@ class transport : public channel, public std::enable_shared_from_this<transport>
                 }
                 else
                 {
-                    iter->second = now + resend_timeout();
+                    iter->second = now + m_repeat;
                 }
 
                 sect.advance();
@@ -469,6 +465,7 @@ class transport : public channel, public std::enable_shared_from_this<transport>
     private:
 
         boost::asio::io_context& m_io;
+        boost::posix_time::time_duration& m_repeat;
         state m_status;
         uint32_t m_local;
         uint32_t m_remote;
@@ -482,8 +479,9 @@ class transport : public channel, public std::enable_shared_from_this<transport>
 
     struct ostreamer
     {
-        ostreamer(boost::asio::io_context& io) noexcept(true)
+        ostreamer(boost::asio::io_context& io, boost::posix_time::time_duration& repeat) noexcept(true)
             : m_io(io)
+            , m_repeat(repeat)
         {
         }
 
@@ -571,7 +569,7 @@ class transport : public channel, public std::enable_shared_from_this<transport>
                     return;
                 }
 
-                iter->second.time = now + resend_timeout();
+                iter->second.time = now + m_repeat;
                 
                 sect.snippet(iter->first, iter->second.data);
                 sect.advance();
@@ -592,7 +590,7 @@ class transport : public channel, public std::enable_shared_from_this<transport>
                 sect.snippet(handle, buffer);
                 sect.advance();
 
-                m_moves.emplace(handle, flight(buffer, now + resend_timeout()));
+                m_moves.emplace(handle, flight(buffer, now + m_repeat));
             }
 
             auto iter = m_acks.begin();
@@ -727,6 +725,7 @@ class transport : public channel, public std::enable_shared_from_this<transport>
         };
 
         boost::asio::io_context& m_io;
+        boost::posix_time::time_duration& m_repeat;
         streambuf m_buffer;
         std::map<uint64_t, flight> m_moves;
         std::list<writer> m_writers;
@@ -737,8 +736,9 @@ class transport : public channel, public std::enable_shared_from_this<transport>
 
     struct istreamer
     {
-        istreamer(boost::asio::io_context& io) noexcept(true)
+        istreamer(boost::asio::io_context& io, boost::posix_time::time_duration& repeat) noexcept(true)
             : m_io(io)
+            , m_repeat(repeat)
         {
         }
 
@@ -821,7 +821,7 @@ class transport : public channel, public std::enable_shared_from_this<transport>
                     sect.numeral(section::edge, m_edge.range);
                     sect.advance();
 
-                    m_edge.time = now + resend_timeout();
+                    m_edge.time = now + m_repeat;
                 }
             }
 
@@ -994,6 +994,7 @@ class transport : public channel, public std::enable_shared_from_this<transport>
         };
 
         boost::asio::io_context& m_io;
+        boost::posix_time::time_duration& m_repeat;
         streambuf m_buffer;
         std::set<uint64_t> m_acks;
         std::list<reader> m_readers;
@@ -1129,7 +1130,7 @@ protected:
         {
             auto timeout = status == state::accepting
                 ? accept_timeout() : (m_connector.deffered() || m_istreamer.deffered() || m_ostreamer.deffered())
-                ? resend_timeout() : ping_timeout();
+                ? m_repeat : ping_timeout();
 
             m_timer.expires_from_now(timeout);
             m_timer.async_wait([weak](const boost::system::error_code& error)
@@ -1172,9 +1173,10 @@ public:
         : m_io(io)
         , m_socket(io)
         , m_timer(io)
-        , m_connector(io)
-        , m_istreamer(io)
-        , m_ostreamer(io)
+        , m_repeat(boost::posix_time::milliseconds(100))
+        , m_connector(io, m_repeat)
+        , m_istreamer(io, m_repeat)
+        , m_ostreamer(io, m_repeat)
         , m_secret(secret)
     {
     }
@@ -1344,6 +1346,7 @@ private:
     boost::asio::io_context& m_io;
     boost::asio::ip::udp::socket m_socket;
     boost::asio::deadline_timer m_timer;
+    boost::posix_time::time_duration m_repeat;
     connector m_connector;
     istreamer m_istreamer;
     ostreamer m_ostreamer;
