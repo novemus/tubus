@@ -215,9 +215,6 @@ class transport : public channel, public std::enable_shared_from_this<transport>
 
         void parse(const packet& pack) noexcept(true)
         {
-            if (!valid(pack))
-                return;
-
             m_seen = boost::posix_time::microsec_clock::universal_time();
 
             auto sect = pack.body();
@@ -1046,6 +1043,12 @@ protected:
 
             boost::system::error_code err;
             m_timer.cancel(err);
+        }
+        else
+        {
+            m_connector.error(boost::asio::error::connection_refused);
+            m_istreamer.error(boost::asio::error::connection_refused);
+            m_ostreamer.error(boost::asio::error::connection_refused);
         }
     }
 
