@@ -283,8 +283,8 @@ class transport : public channel, public std::enable_shared_from_this<transport>
                     {
                         numeral ping(sect.value());
 
-                        size_t rtt = (m_seen - g_zero_time).total_microseconds() - ping.value();
-                        m_repeat = boost::posix_time::microseconds(std::max(rtt * 2ul, 10000ul));
+                        uint64_t rtt = (m_seen - g_zero_time).total_microseconds() - ping.value();
+                        m_repeat = boost::posix_time::microseconds(std::max<uint64_t>(rtt * 2, 10000));
 
                         m_jobs.erase(section::ping);
                         m_jobs.emplace(section::ping, m_seen + ping_timeout());
