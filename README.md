@@ -1,6 +1,6 @@
 # README
 
-This repository contains the cross-platform C++ [tubus](https://github.com/novemus/tubus) library, which implements the streaming transport protocol based on *UDP*. The protocol was originally developed as part of the [wormhole](https://github.com/novemus/wormhole) utility. It can be used in cases where the use of TCP is difficult, for example, for applications running over NAT. Optionally, to increase connection security, `tubus` packets can be obfuscated by pre-shared key.
+This repository contains a cross-platform C++ [tubus](https://github.com/novemus/tubus) library, which implements a streaming transport protocol based on *UDP*. The protocol was originally developed as part of the [wormhole](https://github.com/novemus/wormhole) utility. It can be used in cases where the use of TCP is difficult, for example, for applications running over NAT. Optionally, to increase connection security, `tubus` packets can be obfuscated by a pre-shared key.
 
 For the convenience of developing applications based on `boost::asio`, the asio-like primitives `tubus::socket` and `tubus::acceptor` are offered. The `tubus::socket` primitive implements *AsyncReadStream*, *AsyncWriteStream*, *Stream*, *SyncReadStream* and *SyncWriteStream* concepts, so it can be used as the lower layer of `boost::asio::ssl::stream`.
 
