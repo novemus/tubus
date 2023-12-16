@@ -1,0 +1,12 @@
+libtubus for Debian
+===================
+
+The libtubus is a network library, which provides implementation of a streaming
+transport protocol based on UDP. It can be used to build network applications
+that communicate where the use of TCP is difficult, for example, for applications
+running over NAT. Optionally, to increase connection security, network
+packets can be obfuscated by a pre-shared key.
+
+https://github.com/novemus/tubus
+
+ -- Novemus Band <nineletters@mail.ru>  Sat, 09 Dec 2023 12:15:30 +0300

@@ -48,7 +48,7 @@ channel_ptr create_channel(boost::asio::io_context& io, uint64_t /*pre-shared ke
 Data consumer implemented using `tubus::channel`.
 
 ```cpp
-#include <channel.h>
+#include <tubus/channel.h>
 ...
 auto consumer = tubus::create_channel(io_service, key);
 consumer->open(local_endpoint);
@@ -71,7 +71,7 @@ consumer->connect(remote_endpoint, [&](const boost::system::error_code& error)
 Data producer implemented using `tubus::socket`.
 
 ```cpp
-#include <socket.h>
+#include <tubus/socket.h>
 ...
 tubus::socket producer(io_service, key);
 producer.open(local_endpoint);
@@ -90,7 +90,7 @@ producer.async_accept(remote_endpoint, [&](const boost::system::error_code& erro
 Server implemented using `tubus::acceptor` (*Linux* only).
 
 ```cpp
-#include <acceptor.h>
+#include <tubus/acceptor.h>
 ...
 tubus::acceptor server(io_service, key);
 server.open(local_endpoint);
@@ -117,7 +117,7 @@ Encrypted stream implemented using `boost::asio::ssl::stream` and `tubus::socket
 
 ```cpp
 #include <boost/asio/ssl.hpp>
-#include <socket.h>
+#include <tubus/socket.h>
 ...
 boost::asio::ssl::stream<tubus::socket> client(tubus::socket(io_service, key), ssl_ctx);
 

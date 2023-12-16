@@ -1,0 +1,5 @@
+libtubus (1.1-1+deb12u3) unstable; urgency=low
+
+  * Initial debian package.
+
+ -- Novemus Band <nineletters@mail.ru>  Sat, 09 Dec 2023 13:57:40 +0300
