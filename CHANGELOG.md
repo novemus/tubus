@@ -1,8 +1,12 @@
 # Change Log
 
+## 1.1.1 (December 18, 2023)
+
+- Added the debian build package files and improved CMake build scripts.
+
 ## 1.1.0 (October 8, 2023)
 
-- The `tubus` protocol upgraded to 1.2 version. Dynamic calculation of data resend timeout.
+- The `tubus` protocol has been upgraded to 1.2 version with a feature of dynamic calculation of data resend timeout.
 
 ## 1.0.0 (May 11, 2023)
 

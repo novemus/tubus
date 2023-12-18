@@ -133,6 +133,8 @@ client.shutdown();
 
 ## Build
 
+You can download [prebuild packages](https://github.com/novemus/tubus/releases) for Debian and Windows platforms.
+
 The library depends on the `boost`. To build tests, the `openssl` is required.
 
 ```console
