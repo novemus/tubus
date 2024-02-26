@@ -1044,12 +1044,6 @@ protected:
             boost::system::error_code err;
             m_timer.cancel(err);
         }
-        else
-        {
-            m_connector.error(boost::asio::error::connection_refused);
-            m_istreamer.error(boost::asio::error::connection_refused);
-            m_ostreamer.error(boost::asio::error::connection_refused);
-        }
     }
 
     void consume() noexcept(true)
