@@ -1,11 +1,11 @@
 message("***** tubus *****")
 
 cmake_minimum_required(VERSION 3.10)
-project(tubus VERSION 1.1)
+
+project(tubus)
+project(${PROJECT_NAME} VERSION 1.1)
 
 include(GNUInstallDirs)
-
-set(SOURCES channel.cpp)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
     set(TUBUS_INSTALL_LIBDIR ${PROJECT_NAME}-${${PROJECT_NAME}_VERSION}/${CMAKE_INSTALL_LIBDIR})
@@ -59,34 +59,33 @@ message("* Boost Libraries: ${Boost_LIBRARIES}")
 include_directories(${Boost_INCLUDE_DIRS})
 link_directories(${Boost_LIBRARY_DIRS})
 
+set(TUBUS_OBJECT ${PROJECT_NAME}_object)
 set(TUBUS_SHARED ${PROJECT_NAME}_shared)
 set(TUBUS_STATIC ${PROJECT_NAME}_static)
 
 if(NOT PROJECT_IS_TOP_LEVEL)
-    set(TUBUS_STATIC_TARGET ${TUBUS_STATIC} PARENT_SCOPE)
-    set(TUBUS_SHARED_TARGET ${TUBUS_SHARED} PARENT_SCOPE)
+    set(TUBUS_OBJECT ${TUBUS_OBJECT} PARENT_SCOPE)
 endif()
 
+add_library(${TUBUS_OBJECT} OBJECT channel.cpp)
+add_library(${TUBUS_STATIC} STATIC $<TARGET_OBJECTS:${TUBUS_OBJECT}>)
+set_target_properties(${TUBUS_STATIC} PROPERTIES DEBUG_POSTFIX "d")
+set_target_properties(${TUBUS_STATIC} PROPERTIES OUTPUT_NAME ${PROJECT_NAME})
+
 if(BUILD_SHARED_LIBS)
-    add_library(${TUBUS_SHARED} SHARED ${SOURCES})
-    target_compile_definitions(${TUBUS_SHARED} PUBLIC TUBUS_EXPORTS)
+    add_library(${TUBUS_SHARED} SHARED $<TARGET_OBJECTS:${TUBUS_OBJECT}>)
+    target_compile_definitions(${TUBUS_SHARED} PRIVATE TUBUS_EXPORTS)
     set_target_properties(${TUBUS_SHARED} PROPERTIES DEBUG_POSTFIX "d")
     set_target_properties(${TUBUS_SHARED} PROPERTIES OUTPUT_NAME ${PROJECT_NAME})
 endif()
 
-add_library(${TUBUS_STATIC} STATIC ${SOURCES})
-set_target_properties(${TUBUS_STATIC} PROPERTIES DEBUG_POSTFIX "d")
-set_target_properties(${TUBUS_STATIC} PROPERTIES OUTPUT_NAME ${PROJECT_NAME})
-
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU" OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -Wall")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -Wall -fPIC")
     set(THREADS_PREFER_PTHREAD_FLAG ON)
     find_package(Threads REQUIRED)
-    target_link_libraries(${TUBUS_STATIC} PUBLIC Threads::Threads)
-    target_link_libraries(${TUBUS_STATIC} PUBLIC Boost::system Boost::thread)
+    target_link_libraries(${TUBUS_STATIC} PUBLIC Threads::Threads Boost::system Boost::thread)
     if(BUILD_SHARED_LIBS)
-        target_link_libraries(${TUBUS_SHARED} PUBLIC Threads::Threads)
-        target_link_libraries(${TUBUS_SHARED} PUBLIC Boost::system Boost::thread)
+        target_link_libraries(${TUBUS_SHARED} PUBLIC Threads::Threads Boost::system Boost::thread)
     endif()
 endif()
 
@@ -94,7 +93,7 @@ if(APPLE AND Boost_USE_STATIC_LIBS)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fvisibility=hidden")
 endif()
 
-if(NOT TUBUS_SKIP_INSTALL)
+if(NOT SKIP_INSTALL_TUBUS_LIBRARY)
     install(TARGETS ${TUBUS_STATIC} DESTINATION ${TUBUS_INSTALL_LIBDIR})
     if(BUILD_SHARED_LIBS)
         install(TARGETS ${TUBUS_SHARED} DESTINATION ${TUBUS_INSTALL_LIBDIR})
@@ -128,18 +127,17 @@ if(BUILD_TESTING)
     set(TESTS_NAME tubus_ut)
 
     if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
-        set(TESTS_SOURCES channel.cpp tests/buffer.cpp tests/packet.cpp tests/tubus.cpp tests/socket.cpp)
+        set(TESTS_SOURCES tests/buffer.cpp tests/packet.cpp tests/tubus.cpp tests/socket.cpp)
     else()
-        set(TESTS_SOURCES channel.cpp tests/buffer.cpp tests/packet.cpp tests/tubus.cpp tests/socket.cpp tests/acceptor.cpp)
+        set(TESTS_SOURCES tests/buffer.cpp tests/packet.cpp tests/tubus.cpp tests/socket.cpp tests/acceptor.cpp)
     endif()
 
     add_executable(${TESTS_NAME} ${TESTS_SOURCES})
     set_target_properties(${TESTS_NAME} PROPERTIES DEBUG_POSTFIX "d")
-    target_link_libraries(${TESTS_NAME} OpenSSL::Crypto OpenSSL::SSL)
+    target_link_libraries(${TESTS_NAME} ${TUBUS_OBJECT} OpenSSL::Crypto OpenSSL::SSL)
 
     if(CMAKE_CXX_COMPILER_ID MATCHES "GNU" OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-        target_link_libraries(${TESTS_NAME} Threads::Threads)
-        target_link_libraries(${TESTS_NAME} Boost::system Boost::thread Boost::unit_test_framework)
+        target_link_libraries(${TESTS_NAME} Threads::Threads Boost::system Boost::thread Boost::unit_test_framework)
     endif()
 
     enable_testing()
