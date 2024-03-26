@@ -1,4 +1,4 @@
-Source: libtubus
+Source: tubus
 Section: devel
 Priority: optional
 Maintainer: Novemus Band <nineletters@mail.ru>
@@ -11,7 +11,6 @@ Package: libtubus
 Section: libs
 Architecture: any
 Multi-Arch: same
-Pre-Depends: ${misc:Pre-Depends}
 Depends: ${misc:Depends}, ${shlibs:Depends}
 Description: Runtime of the 'tubus' library
  This library implements a self obfuscated streaming transport
@@ -23,7 +22,7 @@ Architecture: any
 Multi-Arch: same
 Depends: libboost-dev (>= 1.74),
          libtubus (= ${binary:Version}),
-         ${misc:Depends}
+         ${misc:Depends}, ${shlibs:Depends}
 Description: Development files of the 'tubus' library
  This library provides C++ implementation of a self obfuscated streaming
  transport protocol based on UDP.
