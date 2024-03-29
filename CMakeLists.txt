@@ -3,7 +3,7 @@ message("***** tubus *****")
 cmake_minimum_required(VERSION 3.10)
 
 project(tubus)
-project(${PROJECT_NAME} VERSION 1.1)
+project(${PROJECT_NAME} VERSION 1.2)
 
 include(GNUInstallDirs)
 

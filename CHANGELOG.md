@@ -1,5 +1,9 @@
 # Change Log
 
+## 1.2.0 (March 30, 2024)
+
+- Increased connection stability.
+
 ## 1.1.1 (December 18, 2023)
 
 - Added the debian build package files and improved CMake build scripts.
