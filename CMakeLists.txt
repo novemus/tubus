@@ -77,7 +77,7 @@ set_target_properties(${TUBUS_STATIC} PROPERTIES DEBUG_POSTFIX "d")
 set_target_properties(${TUBUS_STATIC} PROPERTIES OUTPUT_NAME ${PROJECT_NAME})
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU" OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -Wall -fPIC")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -Wall -fPIC -fvisibility=hidden")
     set(THREADS_PREFER_PTHREAD_FLAG ON)
     find_package(Threads REQUIRED)
 endif()

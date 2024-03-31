@@ -1,6 +1,6 @@
 # README
 
-This repository contains a cross-platform C++ [tubus](https://github.com/novemus/tubus) library, which implements a streaming transport protocol based on *UDP*. The protocol was originally developed as part of the [wormhole](https://github.com/novemus/wormhole) utility. It can be used in cases where the use of TCP is difficult, for example, for applications running over NAT. Optionally, to increase connection security, `tubus` packets can be obfuscated by a pre-shared key.
+This repository contains the cross-platform C++ [tubus](https://github.com/novemus/tubus) library, which implements a streaming transport protocol based on *UDP*. The protocol was originally developed as part of the [wormhole](https://github.com/novemus/wormhole) utility. It can be used in cases where the use of TCP is difficult, for example, for applications running over NAT. Optionally, to increase connection security, `tubus` packets can be obfuscated by a pre-shared key.
 
 For the convenience of developing applications based on `boost::asio`, the asio-like primitives `tubus::socket` and `tubus::acceptor` are offered. The `tubus::socket` primitive implements *AsyncReadStream*, *AsyncWriteStream*, *Stream*, *SyncReadStream* and *SyncWriteStream* concepts, so it can be used as the lower layer of `boost::asio::ssl::stream`.
 
@@ -141,8 +141,8 @@ The library depends on the `boost`. To build tests, the `openssl` is required.
 cd ~
 git clone https://github.com/novemus/tubus.git
 cd ~/tubus
-cmake -B ./build [-DBOOST_ROOT=...] [-DBUILD_SHARED_LIBS=ON] [-DBUILD_TESTING=ON [-DOPENSSL_ROOT_DIR=...]]
-cmake --build ./build --config Release --target tubus [tubus_ut]
+cmake -B ./build [-DBOOST_ROOT=...] [-DBUILD_TESTING=ON [-DOPENSSL_ROOT_DIR=...]]
+cmake --build ./build --config Release --target tubus_shared tubus_static [tubus_ut]
 cmake --build ./build --target install
 ```
 
