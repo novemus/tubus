@@ -11,9 +11,7 @@
 #pragma once
 
 #include "buffer.h"
-#include <deque>
 #include <random>
-#include <numeric>
 
 #ifdef _MSC_VER
 #include <WinSock2.h>

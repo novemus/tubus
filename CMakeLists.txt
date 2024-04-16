@@ -12,6 +12,9 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
     set(TUBUS_INSTALL_CMAKEDIR ${PROJECT_NAME}-${${PROJECT_NAME}_VERSION}/${CMAKE_INSTALL_LIBDIR}/cmake)
     set(TUBUS_INSTALL_INCLUDEDIR ${PROJECT_NAME}-${${PROJECT_NAME}_VERSION}/${CMAKE_INSTALL_INCLUDEDIR})
     set(CMAKE_STATIC_LIBRARY_SUFFIX "-static.lib")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /std:c++17")
+    set(CMAKE_STATIC_LIBRARY_PREFIX "lib")
+    set(CMAKE_SHARED_LIBRARY_PREFIX "lib")
     set(HEADERS buffer.h channel.h socket.h)
     add_definitions(
         -D_CRT_NO_VA_START_VALIDATION
@@ -19,6 +22,8 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
         -D_WIN32_WINNT=0x0600
         -D_WINSOCK_DEPRECATED_NO_WARNINGS
         -DINCL_EXTRA_HTON_FUNCTIONS
+        -D_SILENCE_CXX17_ALLOCATOR_VOID_DEPRECATION_WARNING
+        -D_SILENCE_CXX17_OLD_ALLOCATOR_MEMBERS_DEPRECATION_WARNING
     )
 else()
     set(HEADERS buffer.h channel.h socket.h acceptor.h)
@@ -45,10 +50,12 @@ endif()
 
 string(REGEX REPLACE "[^/\\]+" ".." TUBUS_INSTALL_CMAKEDIR_REVERSE ${TUBUS_INSTALL_CMAKEDIR})
 
+set(Boost_USE_STATIC_LIBS ON)
+
 if(BUILD_TESTING)
-    find_package(Boost REQUIRED COMPONENTS system thread unit_test_framework)
+    find_package(Boost 1.81 REQUIRED COMPONENTS system unit_test_framework)
 else()
-    find_package(Boost REQUIRED COMPONENTS system thread)
+    find_package(Boost 1.81 REQUIRED COMPONENTS system)
 endif()
 
 message("* Boost Version: ${Boost_VERSION}")
@@ -69,7 +76,7 @@ endif()
 
 add_library(${TUBUS_SHARED} SHARED channel.cpp)
 target_compile_definitions(${TUBUS_SHARED} PRIVATE TUBUS_EXPORTS)
-set_target_properties(${TUBUS_SHARED} PROPERTIES DEBUG_POSTFIX "d")
+set_target_properties(${TUBUS_SHARED} PROPERTIES DEBUG_POSTFIX "d" IMPORT_PREFIX "lib")
 set_target_properties(${TUBUS_SHARED} PROPERTIES OUTPUT_NAME ${PROJECT_NAME})
 
 add_library(${TUBUS_STATIC} STATIC $<TARGET_OBJECTS:${TUBUS_SHARED}>)
@@ -80,10 +87,12 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU" OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -Wall -fPIC -fvisibility=hidden")
     set(THREADS_PREFER_PTHREAD_FLAG ON)
     find_package(Threads REQUIRED)
+    target_link_libraries(${TUBUS_SHARED} Boost::system)
 endif()
 
-if(APPLE AND Boost_USE_STATIC_LIBS)
+if(APPLE)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fvisibility=hidden")
+    target_link_libraries(${TUBUS_SHARED} Boost::system)
 endif()
 
 if(NOT TUBUS_SKIP_INSTALL)
@@ -127,7 +136,7 @@ if(BUILD_TESTING)
     target_link_libraries(${TESTS_NAME} ${TUBUS_STATIC} OpenSSL::Crypto OpenSSL::SSL)
 
     if(CMAKE_CXX_COMPILER_ID MATCHES "GNU" OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-        target_link_libraries(${TESTS_NAME} Threads::Threads Boost::system Boost::thread Boost::unit_test_framework)
+        target_link_libraries(${TESTS_NAME} Threads::Threads Boost::system Boost::unit_test_framework)
     endif()
 
     enable_testing()

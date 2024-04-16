@@ -11,13 +11,9 @@
 #pragma once
 
 #include <list>
-#include <deque>
 #include <ctime>
 #include <cstring>
 #include <stdexcept>
-#include <numeric>
-#include <iostream>
-#include <type_traits>
 #include <vector>
 #include <boost/asio.hpp>
 #include <boost/shared_array.hpp>
