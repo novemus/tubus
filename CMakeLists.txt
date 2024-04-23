@@ -90,11 +90,6 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU" OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     target_link_libraries(${TUBUS_SHARED} Boost::system)
 endif()
 
-if(APPLE)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fvisibility=hidden")
-    target_link_libraries(${TUBUS_SHARED} Boost::system)
-endif()
-
 if(NOT TUBUS_SKIP_INSTALL)
     install(TARGETS ${TUBUS_STATIC} DESTINATION ${TUBUS_INSTALL_LIBDIR})
     install(TARGETS ${TUBUS_SHARED} DESTINATION ${TUBUS_INSTALL_LIBDIR})
