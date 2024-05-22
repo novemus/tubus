@@ -53,9 +53,9 @@ string(REGEX REPLACE "[^/\\]+" ".." TUBUS_INSTALL_CMAKEDIR_REVERSE ${TUBUS_INSTA
 set(Boost_USE_STATIC_LIBS ON)
 
 if(BUILD_TESTING)
-    find_package(Boost 1.81 REQUIRED COMPONENTS system unit_test_framework)
+    find_package(Boost REQUIRED COMPONENTS system unit_test_framework)
 else()
-    find_package(Boost 1.81 REQUIRED COMPONENTS system)
+    find_package(Boost REQUIRED COMPONENTS system)
 endif()
 
 message("* Boost Version: ${Boost_VERSION}")
