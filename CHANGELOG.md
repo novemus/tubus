@@ -1,5 +1,9 @@
 # Change Log
 
+## 1.2.1 (May 31, 2024)
+
+- Building with default boost library.
+
 ## 1.2.0 (March 30, 2024)
 
 - Increased connection stability.

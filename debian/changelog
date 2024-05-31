@@ -1,3 +1,9 @@
+tubus (1.2-2+deb12u3) unstable; urgency=low
+
+  * Building with default boost library.
+
+ -- Novemus Band <nineletters@mail.ru>  Fri, 31 May 2024 23:32:00 +0300
+
 tubus (1.2-1+deb12u3) unstable; urgency=low
 
   * Increased connection stability.

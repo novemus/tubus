@@ -20,9 +20,10 @@ Package: libtubus-dev
 Section: libdevel
 Architecture: any
 Multi-Arch: same
-Depends: libtubus (= ${binary:Version}),
-         libboost1.81-dev (>= 1.81) | libboost-dev (>= 1.81),
-         ${misc:Depends}, ${shlibs:Depends}
+Depends: libboost-dev (>= 1.74) | libboost1.81-dev,
+         libtubus (= ${binary:Version}),
+         ${misc:Depends},
+         ${shlibs:Depends}
 Description: Development files of the 'tubus' library
  This library provides a C++ implementation of a self obfuscated streaming
  transport protocol based on UDP.
