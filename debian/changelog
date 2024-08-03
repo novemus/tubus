@@ -1,3 +1,9 @@
+tubus (1.2-3+deb12u3) unstable; urgency=low
+
+  * Install the package to '/opt' directory.
+
+ -- Novemus Band <nineletters@mail.ru>  Thu, 1 Aug 2024 23:32:00 +0300
+
 tubus (1.2-2+deb12u3) unstable; urgency=low
 
   * Building with default boost library.

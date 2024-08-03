@@ -11,7 +11,7 @@
 #define BOOST_TEST_MODULE tubus_tests
 
 #include "../buffer.h"
-#include <boost/test/included/unit_test.hpp>
+#include <boost/test/unit_test.hpp>
 
 BOOST_AUTO_TEST_SUITE(buffer);
 

@@ -1,6 +1,6 @@
 message("***** tubus *****")
 
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.16)
 
 project(tubus)
 project(${PROJECT_NAME} VERSION 1.2)
@@ -16,6 +16,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
     set(CMAKE_STATIC_LIBRARY_PREFIX "lib")
     set(CMAKE_SHARED_LIBRARY_PREFIX "lib")
     set(HEADERS buffer.h channel.h socket.h)
+    set(CMAKE_MAP_IMPORTED_CONFIG_RELWITHDEBINFO RELEASE)
     add_definitions(
         -D_CRT_NO_VA_START_VALIDATION
         -D_CRT_SECURE_NO_WARNINGS
@@ -87,7 +88,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU" OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -Wall -fPIC -fvisibility=hidden")
     set(THREADS_PREFER_PTHREAD_FLAG ON)
     find_package(Threads REQUIRED)
-    target_link_libraries(${TUBUS_SHARED} Boost::system)
+    target_link_libraries(${TUBUS_SHARED} PRIVATE Boost::system)
 endif()
 
 if(NOT TUBUS_SKIP_INSTALL)
@@ -128,10 +129,14 @@ if(BUILD_TESTING)
 
     add_executable(${TESTS_NAME} ${TESTS_SOURCES})
     set_target_properties(${TESTS_NAME} PROPERTIES DEBUG_POSTFIX "d")
-    target_link_libraries(${TESTS_NAME} ${TUBUS_STATIC} OpenSSL::Crypto OpenSSL::SSL)
+    target_link_libraries(${TESTS_NAME} PRIVATE ${TUBUS_STATIC} OpenSSL::Crypto OpenSSL::SSL Boost::unit_test_framework)
+
+    if(WIN32)
+        target_link_libraries(${TESTS_NAME} PRIVATE Crypt32)
+    endif()
 
     if(CMAKE_CXX_COMPILER_ID MATCHES "GNU" OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-        target_link_libraries(${TESTS_NAME} Threads::Threads Boost::system Boost::unit_test_framework)
+        target_link_libraries(${TESTS_NAME} PRIVATE Threads::Threads Boost::system)
     endif()
 
     enable_testing()
