@@ -99,7 +99,7 @@ if(NOT TUBUS_SKIP_INSTALL)
 
     write_basic_package_version_file(
         "${CMAKE_CURRENT_BINARY_DIR}/tubus-config-version.cmake"
-        VERSION "${CMAKE_PROJECT_VERSION}"
+        VERSION "${${PROJECT_NAME}_VERSION}"
         COMPATIBILITY AnyNewerVersion)
 
     install(FILES ${HEADERS} DESTINATION ${TUBUS_INSTALL_INCLUDEDIR}/${PROJECT_NAME})
