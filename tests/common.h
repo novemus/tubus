@@ -10,7 +10,7 @@
 
 #pragma once
 
-#include "../buffer.h"
+#include <tubus/buffer.h>
 #include <boost/asio.hpp>
 
 struct executor

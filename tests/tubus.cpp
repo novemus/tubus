@@ -8,9 +8,9 @@
  * 
  */
 
-#include "../buffer.h"
-#include "../channel.h"
 #include "common.h"
+#include <tubus/buffer.h>
+#include <tubus/channel.h>
 #include <future>
 #include <functional>
 #include <boost/asio/ip/tcp.hpp>

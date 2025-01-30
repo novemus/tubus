@@ -10,24 +10,8 @@
 
 #pragma once
 
-#ifdef _MSC_VER
-#define TUBUS_CLASS_EXPORT_DECLSPEC __declspec(dllexport)
-#define TUBUS_CLASS_IMPORT_DECLSPEC
-#endif // _MSC_VER
-
-#ifdef __GNUC__
-#define TUBUS_CLASS_EXPORT_DECLSPEC __attribute__ ((visibility("default")))
-#define TUBUS_CLASS_IMPORT_DECLSPEC 
-#endif
-
-#ifdef TUBUS_EXPORTS
-#define TUBUS_CLASS_DECLSPEC TUBUS_CLASS_EXPORT_DECLSPEC
-#else
-#define TUBUS_CLASS_DECLSPEC TUBUS_CLASS_IMPORT_DECLSPEC
-#endif
-
-#include "buffer.h"
-#include <memory>
+#include <tubus/export.h>
+#include <tubus/buffer.h>
 #include <functional>
 #include <boost/system/error_code.hpp>
 #include <boost/asio.hpp>
@@ -39,7 +23,7 @@ typedef boost::asio::ip::udp::endpoint endpoint;
 typedef std::function<void(const boost::system::error_code&)> callback;
 typedef std::function<void(const boost::system::error_code&, size_t)> io_callback;
 
-struct TUBUS_CLASS_DECLSPEC channel
+struct TUBUS_EXPORT channel
 {
     virtual ~channel() noexcept(true) {}
     virtual void close() noexcept(true) = 0;
@@ -57,6 +41,6 @@ struct TUBUS_CLASS_DECLSPEC channel
 
 typedef std::shared_ptr<channel> channel_ptr;
 
-TUBUS_CLASS_DECLSPEC channel_ptr create_channel(boost::asio::io_context& io, uint64_t secret = 0) noexcept(true);
+TUBUS_EXPORT channel_ptr create_channel(boost::asio::io_context& io, uint64_t secret = 0) noexcept(true);
 
 }

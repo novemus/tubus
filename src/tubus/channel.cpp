@@ -8,8 +8,8 @@
  * 
  */
 
-#include "packet.h"
-#include "channel.h"
+#include <tubus/packet.h>
+#include <tubus/channel.h>
 #include <map>
 #include <set>
 #include <list>

@@ -8,9 +8,9 @@
  * 
  */
 
-#include "../buffer.h"
-#include "../acceptor.h"
 #include "common.h"
+#include <tubus/buffer.h>
+#include <tubus/acceptor.h>
 #include <boost/test/unit_test.hpp>
 
 BOOST_AUTO_TEST_SUITE(tubus_acceptor);

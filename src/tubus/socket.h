@@ -10,7 +10,7 @@
 
 #pragma once
 
-#include "channel.h"
+#include <tubus/channel.h>
 #include <future>
 
 namespace tubus { namespace detail {

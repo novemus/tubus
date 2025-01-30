@@ -8,9 +8,9 @@
  * 
  */
 
-#include "../buffer.h"
-#include "../socket.h"
 #include "common.h"
+#include <tubus/buffer.h>
+#include <tubus/socket.h>
 #include <boost/asio/ssl.hpp>
 #include <boost/test/unit_test.hpp>
 

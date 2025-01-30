@@ -10,8 +10,8 @@
 
 #pragma once
 
-#include "channel.h"
-#include "socket.h"
+#include <tubus/channel.h>
+#include <tubus/socket.h>
 #include <future>
 
 namespace tubus {
