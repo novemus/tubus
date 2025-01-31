@@ -23,7 +23,7 @@ typedef boost::asio::ip::udp::endpoint endpoint;
 typedef std::function<void(const boost::system::error_code&)> callback;
 typedef std::function<void(const boost::system::error_code&, size_t)> io_callback;
 
-struct TUBUS_EXPORT channel
+struct LIBTUBUS_EXPORT channel
 {
     virtual ~channel() noexcept(true) {}
     virtual void close() noexcept(true) = 0;
@@ -41,6 +41,6 @@ struct TUBUS_EXPORT channel
 
 typedef std::shared_ptr<channel> channel_ptr;
 
-TUBUS_EXPORT channel_ptr create_channel(boost::asio::io_context& io, uint64_t secret = 0) noexcept(true);
+LIBTUBUS_EXPORT channel_ptr create_channel(boost::asio::io_context& io, uint64_t secret = 0) noexcept(true);
 
 }

@@ -138,21 +138,23 @@ You can download [prebuild packages](https://github.com/novemus/tubus/releases) 
 The library depends on the `boost`. To build tests, the `openssl` is required.
 
 ```console
-cd ~
-git clone https://github.com/novemus/tubus.git
-cd ~/tubus
-cmake -B ./build [-DBOOST_ROOT=...] [-DBUILD_TESTING=ON [-DOPENSSL_ROOT_DIR=...]]
-cmake --build ./build --config Release --target tubus_shared tubus_static [tubus_ut]
-cmake --build ./build --target install
+$ cd ~
+$ git clone https://github.com/novemus/tubus.git
+$ cd ~/tubus
+$ cmake -B ./build -DCMAKE_BUILD_TYPE=Release [-DBUILD_SHARED_LIBS=ON] [-DBOOST_ROOT=...] [-DTUBUS_SKIP_TEST_RULES=OFF [-DOPENSSL_ROOT_DIR=...]]
+$ cmake --build ./build --config Release --target all
+$ cmake --build ./build --target install
 ```
 
-`CMake` import variables.
+`CMake` variables.
 
-* **tubus_USE_SHARED_LIB=ON** - import dynamic library to your CMake project, searches for a static library by default
-* **tubus_INCLUDE_DIR** - tubus header files directory
-* **tubus_LIBRARY_DIR** - tubus library directory
-* **tubus_DLL** - the path to the tubus.dll library file
-* **tubus_LIB** - the path to the tubus-static.lib, tubus.lib, libtubus.a or libtubus.so library file
+* **TUBUS_SKIP_TEST_RULES** - whether to configure test target, ON by default
+* **TUBUS_SKIP_INSTALL_RULES** - whether to configure install target, OFF by default
+* **TUBUS_SKIP_PACKAGE_RULES** - whether to configure package target, ON by default
+* **TUBUS_USE_SHARED_LIB** - force to import shared library
+* **tubus_VERSION** - version of the imported library
+* **tubus_INCLUDE_DIRS** - path to the imported include directories
+* **tubus_LIBRARY** - path to the imported library
 
 ## Collaboration
 

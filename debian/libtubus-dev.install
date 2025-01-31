@@ -1,3 +1,0 @@
-opt/tubus/*/include
-opt/tubus/*/lib/*/*.a
-opt/tubus/*/lib/*/cmake/*.cmake
