@@ -17,6 +17,10 @@ endif()
 
 ########## dependencies ##########
 
+if (NOT MSVC AND NOT BUILD_SHARED_LIBS)
+    set(Boost_USE_STATIC_LIBS ON)
+endif()
+
 if(NOT TUBUS_SKIP_TEST_RULES)
     find_package(OpenSSL REQUIRED)
 
@@ -43,24 +47,16 @@ set(LIBTUBUS lib${PROJECT_NAME})
 add_library(${LIBTUBUS})
 add_library(${PROJECT_NAME}::${LIBTUBUS} ALIAS ${LIBTUBUS})
 
-set(EXPORT_FILE export_shared.h)
+generate_export_header(${LIBTUBUS} EXPORT_FILE_NAME export_header/tubus/export.h)
 
-if(NOT BUILD_SHARED_LIBS)
-    set(EXPORT_FILE export_static.h)
-endif()
-
-generate_export_header(${LIBTUBUS} EXPORT_FILE_NAME export_header/tubus/${EXPORT_FILE})
-
-set(SOURCES ${CMAKE_CURRENT_BINARY_DIR}/export_header/tubus/${EXPORT_FILE}
+set(SOURCES "${CMAKE_CURRENT_BINARY_DIR}/export_header/tubus/export.h"
     src/tubus/channel.h
     src/tubus/buffer.h
     src/tubus/packet.h
-    src/tubus/export.h
     src/tubus/channel.cpp
     )
 
-set(HEADERS ${CMAKE_CURRENT_BINARY_DIR}/export_header/tubus/${EXPORT_FILE}
-    src/tubus/export.h
+set(HEADERS "${CMAKE_CURRENT_BINARY_DIR}/export_header/tubus/export.h"
     src/tubus/channel.h
     src/tubus/buffer.h
     src/tubus/socket.h
@@ -88,11 +84,10 @@ if(NOT DEFINED CMAKE_VISIBILITY_INLINES_HIDDEN)
 endif()
 
 target_sources(${LIBTUBUS} PRIVATE ${SOURCES})
-target_compile_definitions(${LIBTUBUS} PUBLIC "$<$<NOT:$<BOOL:${BUILD_SHARED_LIBS}>>:LIBTUBUS_STATIC_DEFINE>")
 target_include_directories(${LIBTUBUS} PUBLIC 
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>"
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/export_header>"
-    PRIVATE ${Boost_INCLUDE_DIRS})
+    PRIVATE "${Boost_INCLUDE_DIRS}")
 
 set_target_properties(${LIBTUBUS} PROPERTIES DEBUG_POSTFIX "d" OUTPUT_NAME ${PROJECT_NAME} IMPORT_PREFIX "lib")
 set_target_properties(${LIBTUBUS} PROPERTIES SOVERSION ${PROJECT_VERSION_MAJOR} VERSION ${PROJECT_VERSION})
@@ -104,41 +99,17 @@ if(NOT TUBUS_SKIP_INSTALL_RULES AND NOT CMAKE_SKIP_INSTALL_RULES)
     include(GNUInstallDirs)
     include(CMakePackageConfigHelpers)
 
-    if(MSVC)
-        set(LIBTUBUS_INSTALL_LIBDIR ${PROJECT_NAME}-${${PROJECT_NAME}_VERSION}/${CMAKE_INSTALL_LIBDIR})
-        set(LIBTUBUS_INSTALL_CMAKEDIR ${PROJECT_NAME}-${${PROJECT_NAME}_VERSION}/${CMAKE_INSTALL_DATADIR}/cmake)
-        set(LIBTUBUS_INSTALL_INCLUDEDIR ${PROJECT_NAME}-${${PROJECT_NAME}_VERSION}/${CMAKE_INSTALL_INCLUDEDIR})
-    else()
-        if(CMAKE_INSTALL_PREFIX MATCHES "^(/usr)|(/usr/local)$")
-            if(APPLE)
-                set(LIBTUBUS_INSTALL_LIBDIR ${CMAKE_INSTALL_LIBDIR})
-                set(LIBTUBUS_INSTALL_CMAKEDIR ${CMAKE_INSTALL_LIBDIR}/cmake)
-                set(LIBTUBUS_INSTALL_INCLUDEDIR ${CMAKE_INSTALL_INCLUDEDIR})
-            elseif(CMAKE_INSTALL_LIBDIR MATCHES ${CMAKE_LIBRARY_ARCHITECTURE} OR CMAKE_INSTALL_PREFIX MATCHES "/usr/local")
-                set(LIBTUBUS_INSTALL_LIBDIR ${CMAKE_INSTALL_LIBDIR}/${PROJECT_NAME}-${${PROJECT_NAME}_VERSION})
-                set(LIBTUBUS_INSTALL_CMAKEDIR ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}-${${PROJECT_NAME}_VERSION})
-                set(LIBTUBUS_INSTALL_INCLUDEDIR ${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME}-${${PROJECT_NAME}_VERSION})
-            else()
-                set(LIBTUBUS_INSTALL_LIBDIR ${CMAKE_INSTALL_LIBDIR}/${CMAKE_LIBRARY_ARCHITECTURE}/${PROJECT_NAME}-${${PROJECT_NAME}_VERSION})
-                set(LIBTUBUS_INSTALL_CMAKEDIR ${CMAKE_INSTALL_LIBDIR}/${CMAKE_LIBRARY_ARCHITECTURE}/cmake/${PROJECT_NAME}-${${PROJECT_NAME}_VERSION})
-                set(LIBTUBUS_INSTALL_INCLUDEDIR ${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME}-${${PROJECT_NAME}_VERSION})
-            endif()
-        else()
-            set(LIBTUBUS_INSTALL_LIBDIR ${PROJECT_NAME}-${${PROJECT_NAME}_VERSION}/${CMAKE_INSTALL_LIBDIR}/${CMAKE_LIBRARY_ARCHITECTURE})
-            set(LIBTUBUS_INSTALL_CMAKEDIR ${PROJECT_NAME}-${${PROJECT_NAME}_VERSION}/${CMAKE_INSTALL_LIBDIR}/${CMAKE_LIBRARY_ARCHITECTURE}/cmake)
-            set(LIBTUBUS_INSTALL_INCLUDEDIR ${PROJECT_NAME}-${${PROJECT_NAME}_VERSION}/${CMAKE_INSTALL_INCLUDEDIR})
-        endif()
-    endif()
+    set(LIBTUBUS_INSTALL_CMAKEDIR "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}")
 
-    configure_package_config_file(cmake/tubus-config.cmake.in tubus-config.cmake INSTALL_DESTINATION ${LIBTUBUS_INSTALL_CMAKEDIR})
+    configure_package_config_file(cmake/tubus-config.cmake.in tubus-config.cmake INSTALL_DESTINATION "${LIBTUBUS_INSTALL_CMAKEDIR}")
 
     write_basic_package_version_file(tubus-config-version.cmake COMPATIBILITY SameMajorVersion)
 
     install(TARGETS ${LIBTUBUS} EXPORT tubus_export
-        RUNTIME DESTINATION ${LIBTUBUS_INSTALL_LIBDIR} COMPONENT runtime_files
-        LIBRARY DESTINATION ${LIBTUBUS_INSTALL_LIBDIR} COMPONENT library_files
-        ARCHIVE DESTINATION ${LIBTUBUS_INSTALL_LIBDIR} COMPONENT archive_files
-        INCLUDES DESTINATION ${LIBTUBUS_INSTALL_INCLUDEDIR})
+        RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}" COMPONENT runtime_files
+        LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT library_files
+        ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT archive_files
+        INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
 
     set(TARGET_FILE tubus-shared-targets.cmake)
 
@@ -148,27 +119,27 @@ if(NOT TUBUS_SKIP_INSTALL_RULES AND NOT CMAKE_SKIP_INSTALL_RULES)
 
     install(EXPORT tubus_export COMPONENT cmake_files
         FILE ${TARGET_FILE}
-        DESTINATION ${LIBTUBUS_INSTALL_CMAKEDIR}
+        DESTINATION "${LIBTUBUS_INSTALL_CMAKEDIR}"
         NAMESPACE tubus::)
 
     install(FILES
-        ${CMAKE_CURRENT_BINARY_DIR}/tubus-config.cmake
-        ${CMAKE_CURRENT_BINARY_DIR}/tubus-config-version.cmake
+        "${CMAKE_CURRENT_BINARY_DIR}/tubus-config.cmake"
+        "${CMAKE_CURRENT_BINARY_DIR}/tubus-config-version.cmake"
         COMPONENT cmake_files
-        DESTINATION ${LIBTUBUS_INSTALL_CMAKEDIR})
+        DESTINATION "${LIBTUBUS_INSTALL_CMAKEDIR}")
 
-    install(FILES ${HEADERS} DESTINATION ${LIBTUBUS_INSTALL_INCLUDEDIR}/${PROJECT_NAME} COMPONENT header_files)
+    install(FILES ${HEADERS} DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME}" COMPONENT header_files)
 
     if(MSVC)
         if(BUILD_SHARED_LIBS)
             install(FILES "$<TARGET_PDB_FILE:${LIBTUBUS}>" COMPONENT pdb_files
                 CONFIGURATIONS Debug RelWithDebInfo
-                DESTINATION ${LIBTUBUS_INSTALL_LIBDIR}
+                DESTINATION "${CMAKE_INSTALL_LIBDIR}"
                 OPTIONAL)
         else()
             install(FILES "$<TARGET_FILE_DIR:${LIBTUBUS}>/$<TARGET_FILE_PREFIX:${LIBTUBUS}>$<TARGET_FILE_BASE_NAME:${LIBTUBUS}>-static.pdb" COMPONENT pdb_files
                 CONFIGURATIONS Debug RelWithDebInfo
-                DESTINATION ${LIBTUBUS_INSTALL_LIBDIR}
+                DESTINATION "${CMAKE_INSTALL_LIBDIR}"
                 OPTIONAL)
         endif()
     endif()
@@ -186,58 +157,50 @@ if(NOT TUBUS_SKIP_TEST_RULES)
     endif()
 
     add_executable(${TUBUS_TEST} ${TESTS_SOURCES})
-    set_target_properties(${TUBUS_TEST} PROPERTIES DEBUG_POSTFIX "d")
-    target_link_libraries(${TUBUS_TEST} PRIVATE ${LIBTUBUS} OpenSSL::Crypto OpenSSL::SSL Boost::unit_test_framework)
+    target_link_libraries(${TUBUS_TEST} PRIVATE $<TARGET_OBJECTS:${LIBTUBUS}> OpenSSL::Crypto OpenSSL::SSL Boost::unit_test_framework)
+    target_include_directories(${TUBUS_TEST} PRIVATE "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>" "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/export_header>")
+
+    set_target_properties(${TUBUS_TEST} PROPERTIES DEBUG_POSTFIX "d" COMPILE_FLAGS -DLIBTUBUS_STATIC_DEFINE)
 
     if(WIN32)
         target_link_libraries(${TUBUS_TEST} PRIVATE Crypt32)
     endif()
 
     enable_testing()
-    add_test(NAME ${TUBUS_TEST} COMMAND ${TUBUS_TEST} WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/tests)
+    add_test(NAME ${TUBUS_TEST} COMMAND ${TUBUS_TEST} WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/tests")
 endif()
 
 ########## package ##########
 
 if(NOT TUBUS_SKIP_PACKAGE_RULES AND NOT TUBUS_SKIP_INSTALL_RULES AND NOT CMAKE_SKIP_INSTALL_RULES)
-    set(DOC_FILES_COMPONENT lib_doc_files)
-
-    if(CMAKE_INSTALL_PREFIX MATCHES "^(/usr)|(/usr/local)$")
-        set(LIBTUBUS_INSTALL_DOCDIR ${CMAKE_INSTALL_DOCDIR}/${LIBTUBUS}-${${PROJECT_NAME}_VERSION})
-    else()
-        set(LIBTUBUS_INSTALL_DOCDIR ${PROJECT_NAME}-${${PROJECT_NAME}_VERSION}/${CMAKE_INSTALL_DATADIR}/doc/${LIBTUBUS})
-    endif()
-
     if(CMAKE_HOST_SYSTEM_NAME MATCHES "Linux")
         cmake_host_system_information(RESULT DISTR QUERY DISTRIB_ID)
         if(DISTR MATCHES "(debian)|(ubuntu)|(kali)|(astra)")
-            if(NOT BUILD_SHARED_LIBS)
-                set(DOC_FILES_COMPONENT dev_doc_files)
-                set(LIBTUBUS_INSTALL_DOCDIR "${LIBTUBUS_INSTALL_DOCDIR}-dev")
-            endif()
             add_custom_command(DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/debian/changelog"
                 COMMAND gzip -cn9 "${CMAKE_CURRENT_SOURCE_DIR}/debian/changelog" > "${CMAKE_CURRENT_BINARY_DIR}/changelog.gz"
                 OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/changelog.gz")
             add_custom_target(changelog ALL DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/changelog.gz")
             set(DEBIAN_DOC_FILES
-                ${CMAKE_CURRENT_BINARY_DIR}/changelog.gz
-                ${CMAKE_CURRENT_SOURCE_DIR}/debian/copyright
-                ${CMAKE_CURRENT_SOURCE_DIR}/debian/README.Debian
-                )
-            install(FILES ${DEBIAN_DOC_FILES} DESTINATION ${LIBTUBUS_INSTALL_DOCDIR} COMPONENT ${DOC_FILES_COMPONENT})
+                "${CMAKE_CURRENT_BINARY_DIR}/changelog.gz"
+                "${CMAKE_CURRENT_SOURCE_DIR}/debian/copyright"
+                "${CMAKE_CURRENT_SOURCE_DIR}/debian/README.Debian"
+            )
+            if(BUILD_SHARED_LIBS)
+                install(FILES ${DEBIAN_DOC_FILES} DESTINATION "${CMAKE_INSTALL_DATADIR}/doc/${LIBTUBUS}" COMPONENT lib_deb_files)
+            else()
+                install(FILES ${DEBIAN_DOC_FILES} DESTINATION "${CMAKE_INSTALL_DATADIR}/doc/${LIBTUBUS}-dev" COMPONENT dev_deb_files)
+            endif()
         endif()
     endif()
 
     if(NOT BUILD_SHARED_LIBS)
-        set(SOURCE_DOC_FILES
-            ${CMAKE_CURRENT_SOURCE_DIR}/LICENSE.txt
-            ${CMAKE_CURRENT_SOURCE_DIR}/README.md
-            ${CMAKE_CURRENT_SOURCE_DIR}/CHANGELOG.md
+        set(DEVEL_DOC_FILES
+            "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE.txt"
+            "${CMAKE_CURRENT_SOURCE_DIR}/README.md"
+            "${CMAKE_CURRENT_SOURCE_DIR}/CHANGELOG.md"
             )
-        install(FILES ${SOURCE_DOC_FILES} DESTINATION ${LIBTUBUS_INSTALL_DOCDIR} COMPONENT ${DOC_FILES_COMPONENT})
+        install(FILES ${DEVEL_DOC_FILES} DESTINATION "${CMAKE_INSTALL_DATADIR}/doc/${LIBTUBUS}-dev" COMPONENT dev_doc_files)
     endif()
 
     include(CPack)
 endif()
-
-message("***** tubus done ***** ")
