@@ -1,8 +1,8 @@
 tubus (1.2.2-1) unstable; urgency=low
 
-  * CMake project structure reform.
+  * The CMake project has been reorganized.
 
- -- Novemus Band <nineletters@mail.ru>  Mon, 3 Feb 2025 20:00:00 +0300
+ -- Novemus Band <nineletters@mail.ru>  Wed, 26 Feb 2025 08:00:00 +0300
 
 tubus (1.2-3+deb12u3) unstable; urgency=low
 

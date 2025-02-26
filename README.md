@@ -152,9 +152,6 @@ $ cmake --build ./build --target install
 * **TUBUS_SKIP_INSTALL_RULES** - whether to configure install target, OFF by default
 * **TUBUS_SKIP_PACKAGE_RULES** - whether to configure package target, ON by default
 * **TUBUS_USE_SHARED_LIB** - force to import shared library
-* **tubus_VERSION** - version of the imported library
-* **tubus_INCLUDE_DIRS** - path to the imported include directories
-* **tubus_LIBRARY** - path to the imported library
 
 ## Collaboration
 
