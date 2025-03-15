@@ -28,9 +28,9 @@ if(NOT TUBUS_SKIP_TEST_RULES)
     message("* OpenSSL Include Dir: ${OPENSSL_INCLUDE_DIR}")
     message("* OpenSSL Libraries: ${OPENSSL_LIBRARIES}")
 
-    find_package(Boost REQUIRED COMPONENTS system unit_test_framework)
+    find_package(Boost 1.74...1.85 REQUIRED COMPONENTS system unit_test_framework)
 else()
-    find_package(Boost REQUIRED COMPONENTS system)
+    find_package(Boost 1.74...1.85 REQUIRED COMPONENTS system)
 endif()
 
 message("* Boost Version: ${Boost_VERSION}")
