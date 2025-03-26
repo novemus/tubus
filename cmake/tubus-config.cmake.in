@@ -31,7 +31,7 @@ if(NOT TARGET tubus::libtubus)
     check_required_components(tubus)
 
     include(CMakeFindDependencyMacro)
-    find_dependency(Boost COMPONENTS system)
+    find_dependency(Boost CONFIG COMPONENTS system)
 
     get_target_property(tubus_INCLUDE_DIRS tubus::libtubus INTERFACE_INCLUDE_DIRECTORIES)
     set(tubus_LIBRARY tubus::libtubus)

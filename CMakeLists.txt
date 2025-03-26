@@ -28,9 +28,9 @@ if(NOT TUBUS_SKIP_TEST_RULES)
     message("* OpenSSL Include Dir: ${OPENSSL_INCLUDE_DIR}")
     message("* OpenSSL Libraries: ${OPENSSL_LIBRARIES}")
 
-    find_package(Boost 1.74...1.85 REQUIRED COMPONENTS system unit_test_framework)
+    find_package(Boost 1.74...1.85 CONFIG REQUIRED COMPONENTS system unit_test_framework)
 else()
-    find_package(Boost 1.74...1.85 REQUIRED COMPONENTS system)
+    find_package(Boost 1.74...1.85 CONFIG REQUIRED COMPONENTS system)
 endif()
 
 message("* Boost Version: ${Boost_VERSION}")
@@ -91,6 +91,9 @@ target_include_directories(${LIBTUBUS} PUBLIC
 
 set_target_properties(${LIBTUBUS} PROPERTIES DEBUG_POSTFIX "d" OUTPUT_NAME ${PROJECT_NAME} IMPORT_PREFIX "lib")
 set_target_properties(${LIBTUBUS} PROPERTIES SOVERSION ${PROJECT_VERSION_MAJOR} VERSION ${PROJECT_VERSION})
+set_target_properties(${LIBTUBUS} PROPERTIES CXX_VISIBILITY_PRESET hidden VISIBILITY_INLINES_HIDDEN ON)
+
+target_compile_features(${LIBTUBUS} PRIVATE cxx_std_17)
 
 ########## install ##########
 
@@ -161,6 +164,7 @@ if(NOT TUBUS_SKIP_TEST_RULES)
     target_include_directories(${TUBUS_TEST} PRIVATE "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>" "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/export_header>")
 
     set_target_properties(${TUBUS_TEST} PROPERTIES DEBUG_POSTFIX "d" COMPILE_FLAGS -DLIBTUBUS_STATIC_DEFINE)
+    target_compile_features(${TUBUS_TEST} PRIVATE cxx_std_17)
 
     if(WIN32)
         target_link_libraries(${TUBUS_TEST} PRIVATE Crypt32)
