@@ -20,8 +20,8 @@ const boost::system::error_code NONE_ERROR;
 
 BOOST_AUTO_TEST_CASE(core)
 {
-    tubus::endpoint le(boost::asio::ip::address::from_string("127.0.0.1"), 3001);
-    tubus::endpoint re(boost::asio::ip::address::from_string("127.0.0.1"), 3002);
+    tubus::endpoint le(boost::asio::ip::make_address("127.0.0.1"), 3001);
+    tubus::endpoint re(boost::asio::ip::make_address("127.0.0.1"), 3002);
 
     tubus::socket left(g_reactor.io, 1234567890);
     tubus::socket right(g_reactor.io, 1234567890);
@@ -108,8 +108,8 @@ BOOST_AUTO_TEST_CASE(core)
 
 BOOST_AUTO_TEST_CASE(ssl)
 {
-    tubus::endpoint se(boost::asio::ip::address::from_string("127.0.0.1"), 3001);
-    tubus::endpoint ce(boost::asio::ip::address::from_string("127.0.0.1"), 3002);
+    tubus::endpoint se(boost::asio::ip::make_address("127.0.0.1"), 3001);
+    tubus::endpoint ce(boost::asio::ip::make_address("127.0.0.1"), 3002);
 
     boost::asio::ssl::context srv(boost::asio::ssl::context::sslv23);
     srv.set_options(boost::asio::ssl::context::default_workarounds | boost::asio::ssl::context::sslv23_server);

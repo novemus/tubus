@@ -20,13 +20,13 @@ void post_io_method(channel_ptr channel, io_method method, limit_method limiter,
 {
     if (!channel)
     {
-        io.post(std::bind(callback, boost::asio::error::broken_pipe, result));
+        boost::asio::post(io, std::bind(callback, boost::asio::error::broken_pipe, result));
         return;
     }
 
     if (buffer.size() == 0)
     {
-        io.post(std::bind(callback, boost::system::error_code(), result));
+        boost::asio::post(io, std::bind(callback, boost::system::error_code(), result));
         return;
     }
 
@@ -37,7 +37,7 @@ void post_io_method(channel_ptr channel, io_method method, limit_method limiter,
         {
             if (error)
             {
-                io.post(std::bind(callback, error, result + size));
+                boost::asio::post(io, std::bind(callback, error, result + size));
                 return;
             }
 
@@ -49,7 +49,7 @@ void post_io_method(channel_ptr channel, io_method method, limit_method limiter,
     }
     else
     {
-        io.post(std::bind(callback, boost::system::error_code(), result));
+        boost::asio::post(io, std::bind(callback, boost::system::error_code(), result));
     }
 }
 
@@ -58,13 +58,13 @@ void post_io_method(channel_ptr channel, io_method method, limit_method limiter,
 {
     if (!channel)
     {
-        io.post(std::bind(callback, boost::asio::error::broken_pipe, result));
+        boost::asio::post(io, std::bind(callback, boost::asio::error::broken_pipe, result));
         return;
     }
 
     if (begin == end)
     {
-        io.post(std::bind(callback, boost::system::error_code(), result));
+        boost::asio::post(io, std::bind(callback, boost::system::error_code(), result));
         return;
     }
 
@@ -72,7 +72,7 @@ void post_io_method(channel_ptr channel, io_method method, limit_method limiter,
     {
         if (error)
         {
-            io.post(std::bind(callback, error, result + size));
+            boost::asio::post(io, std::bind(callback, error, result + size));
             return;
         }
 

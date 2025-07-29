@@ -185,8 +185,8 @@ BOOST_AUTO_TEST_CASE(core)
 {
     const uint64_t default_receive_buffer = 5ull * 1024 * 1024;
 
-    boost::asio::ip::udp::endpoint le(boost::asio::ip::address::from_string("127.0.0.1"), 3001);
-    boost::asio::ip::udp::endpoint re(boost::asio::ip::address::from_string("127.0.0.1"), 3002);
+    boost::asio::ip::udp::endpoint le(boost::asio::ip::make_address("127.0.0.1"), 3001);
+    boost::asio::ip::udp::endpoint re(boost::asio::ip::make_address("127.0.0.1"), 3002);
 
     tubus_wrapper left(le, re, 1234567890);
     tubus_wrapper right(re, le, 1234567890);
@@ -244,8 +244,8 @@ BOOST_AUTO_TEST_CASE(core)
 
 BOOST_AUTO_TEST_CASE(connectivity)
 {
-    boost::asio::ip::udp::endpoint le(boost::asio::ip::address::from_string("127.0.0.1"), 3001);
-    boost::asio::ip::udp::endpoint re(boost::asio::ip::address::from_string("127.0.0.1"), 3002);
+    boost::asio::ip::udp::endpoint le(boost::asio::ip::make_address("127.0.0.1"), 3001);
+    boost::asio::ip::udp::endpoint re(boost::asio::ip::make_address("127.0.0.1"), 3002);
 
     tubus_wrapper left(le, re, 1234567890);
     BOOST_REQUIRE_NO_THROW(left.open());
@@ -282,9 +282,9 @@ BOOST_AUTO_TEST_CASE(connectivity)
 
 BOOST_AUTO_TEST_CASE(integrity)
 {
-    boost::asio::ip::udp::endpoint pe(boost::asio::ip::address::from_string("127.0.0.1"), 3000);
-    boost::asio::ip::udp::endpoint le(boost::asio::ip::address::from_string("127.0.0.1"), 3001);
-    boost::asio::ip::udp::endpoint re(boost::asio::ip::address::from_string("127.0.0.1"), 3002);
+    boost::asio::ip::udp::endpoint pe(boost::asio::ip::make_address("127.0.0.1"), 3000);
+    boost::asio::ip::udp::endpoint le(boost::asio::ip::make_address("127.0.0.1"), 3001);
+    boost::asio::ip::udp::endpoint re(boost::asio::ip::make_address("127.0.0.1"), 3002);
 
     auto proxy = std::make_shared<mediator>(pe, le, re);
     proxy->start();
@@ -334,8 +334,8 @@ BOOST_AUTO_TEST_CASE(integrity)
 
 BOOST_AUTO_TEST_CASE(fall)
 {
-    boost::asio::ip::udp::endpoint le(boost::asio::ip::address::from_string("127.0.0.1"), 3001);
-    boost::asio::ip::udp::endpoint re(boost::asio::ip::address::from_string("127.0.0.1"), 3002);
+    boost::asio::ip::udp::endpoint le(boost::asio::ip::make_address("127.0.0.1"), 3001);
+    boost::asio::ip::udp::endpoint re(boost::asio::ip::make_address("127.0.0.1"), 3002);
 
     tubus_wrapper left(le, re, 0);
     tubus_wrapper right(re, le, 0);
@@ -364,8 +364,8 @@ BOOST_AUTO_TEST_CASE(fall)
 
 BOOST_AUTO_TEST_CASE(speed)
 {
-    boost::asio::ip::udp::endpoint le(boost::asio::ip::address::from_string("127.0.0.1"), 3001);
-    boost::asio::ip::udp::endpoint re(boost::asio::ip::address::from_string("127.0.0.1"), 3002);
+    boost::asio::ip::udp::endpoint le(boost::asio::ip::make_address("127.0.0.1"), 3001);
+    boost::asio::ip::udp::endpoint re(boost::asio::ip::make_address("127.0.0.1"), 3002);
 
     boost::asio::io_context io;
     auto left = tubus::create_channel(g_reactor.io, 0);

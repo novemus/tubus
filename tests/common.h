@@ -12,12 +12,13 @@
 
 #include <tubus/buffer.h>
 #include <boost/asio.hpp>
+#include <boost/asio/executor_work_guard.hpp>
 
 struct executor
 {
     boost::asio::io_context io;
 
-    executor() : work(io)
+    executor() : work(boost::asio::make_work_guard(io))
     {
         for (size_t i = 0; i < std::thread::hardware_concurrency(); ++i)
         {
@@ -35,7 +36,7 @@ struct executor
 
 private:
 
-    boost::asio::io_context::work work;
+    boost::asio::executor_work_guard<boost::asio::io_context::executor_type> work;
     boost::asio::thread_pool pool;
 };
 

@@ -19,9 +19,9 @@ const boost::system::error_code NONE_ERROR;
 
 BOOST_AUTO_TEST_CASE(core)
 {
-    tubus::endpoint se(boost::asio::ip::address::from_string("127.0.0.1"), 3000);
-    tubus::endpoint c1(boost::asio::ip::address::from_string("127.0.0.1"), 3001);
-    tubus::endpoint c2(boost::asio::ip::address::from_string("127.0.0.1"), 3002);
+    tubus::endpoint se(boost::asio::ip::make_address("127.0.0.1"), 3000);
+    tubus::endpoint c1(boost::asio::ip::make_address("127.0.0.1"), 3001);
+    tubus::endpoint c2(boost::asio::ip::make_address("127.0.0.1"), 3002);
 
     tubus::acceptor server(g_reactor.io);
     BOOST_REQUIRE_NO_THROW(server.open(se));

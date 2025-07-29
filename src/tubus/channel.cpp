@@ -186,13 +186,13 @@ class transport : public channel, public std::enable_shared_from_this<transport>
         {
             if (on_connect)
             {
-                m_io.post(boost::bind(on_connect, err));
+                boost::asio::post(m_io, boost::bind(on_connect, err));
                 on_connect = 0;
             }
 
             if (on_shutdown)
             {
-                m_io.post(boost::bind(on_shutdown, err));
+                boost::asio::post(m_io, boost::bind(on_shutdown, err));
                 on_shutdown = 0;
             }
 
@@ -244,7 +244,7 @@ class transport : public channel, public std::enable_shared_from_this<transport>
                             m_jobs.erase(section::link);
                             m_jobs.emplace(section::ping, g_zero_time);
 
-                            m_io.post(boost::bind(on_connect, boost::system::error_code()));
+                            boost::asio::post(m_io, boost::bind(on_connect, boost::system::error_code()));
                             on_connect = 0;
                         }
                         break;
@@ -267,7 +267,7 @@ class transport : public channel, public std::enable_shared_from_this<transport>
                             m_status = state::finished;
                             m_jobs.erase(section::tear);
 
-                            m_io.post(boost::bind(on_shutdown, boost::system::error_code()));
+                            boost::asio::post(m_io, boost::bind(on_shutdown, boost::system::error_code()));
                             on_shutdown = 0;
                         }
                         break;
@@ -308,7 +308,7 @@ class transport : public channel, public std::enable_shared_from_this<transport>
             auto now = boost::posix_time::microsec_clock::universal_time();
             if ((m_status == state::linked && m_seen + ping_timeout() < now - boost::posix_time::seconds(5)) || now > m_dead)
             {
-                m_io.post(boost::bind(on_error, boost::asio::error::interrupted));
+                boost::asio::post(m_io, boost::bind(on_error, boost::asio::error::interrupted));
                 return;
             }
 
@@ -344,7 +344,7 @@ class transport : public channel, public std::enable_shared_from_this<transport>
                     {
                         m_status = state::linked;
                         m_dead = boost::posix_time::max_date_time;
-                        m_io.post(boost::bind(on_connect, boost::system::error_code()));
+                        boost::asio::post(m_io, boost::bind(on_connect, boost::system::error_code()));
                         on_connect = 0;
                     }
                 }
@@ -359,7 +359,7 @@ class transport : public channel, public std::enable_shared_from_this<transport>
 
                     if (on_shutdown)
                     {
-                        m_io.post(boost::bind(on_shutdown, boost::system::error_code()));
+                        boost::asio::post(m_io, boost::bind(on_shutdown, boost::system::error_code()));
                         on_shutdown = 0;
                     }
                 }
@@ -383,7 +383,7 @@ class transport : public channel, public std::enable_shared_from_this<transport>
         {
             if (m_status == state::finished)
             {
-                m_io.post(boost::bind(handler, boost::system::error_code()));
+                boost::asio::post(m_io, boost::bind(handler, boost::system::error_code()));
                 return false;
             }
 
@@ -392,7 +392,7 @@ class transport : public channel, public std::enable_shared_from_this<transport>
                 boost::system::error_code error = m_status == state::shutting ? 
                     boost::asio::error::in_progress : boost::asio::error::not_connected;
 
-                m_io.post(boost::bind(handler, error));
+                boost::asio::post(m_io, boost::bind(handler, error));
                 return false;
             }
 
@@ -417,7 +417,7 @@ class transport : public channel, public std::enable_shared_from_this<transport>
                     boost::asio::error::in_progress : m_status == state::linked ?
                         boost::asio::error::already_connected : boost::asio::error::no_permission;
 
-                m_io.post(boost::bind(handler, error));
+                boost::asio::post(m_io, boost::bind(handler, error));
                 return false;
             }
 
@@ -440,7 +440,7 @@ class transport : public channel, public std::enable_shared_from_this<transport>
                     boost::asio::error::in_progress : m_status == state::linked ?
                         boost::asio::error::already_connected : boost::asio::error::no_permission;
 
-                m_io.post(boost::bind(handler, error));
+                boost::asio::post(m_io, boost::bind(handler, error));
                 return false;
             }
 
@@ -500,7 +500,7 @@ class transport : public channel, public std::enable_shared_from_this<transport>
                 else if (cursor > iter->head) 
                     sent = cursor - iter->head;
 
-                m_io.post(boost::bind(iter->callback, err, sent));
+                boost::asio::post(m_io, boost::bind(iter->callback, err, sent));
                 ++iter;
             }
 
@@ -526,7 +526,7 @@ class transport : public channel, public std::enable_shared_from_this<transport>
                     auto iter = m_writers.begin();
                     while (iter != m_writers.end() && iter->head + iter->size <= cursor)
                     {
-                        m_io.post(boost::bind(iter->callback, boost::system::error_code(), iter->size));
+                        boost::asio::post(m_io, boost::bind(iter->callback, boost::system::error_code(), iter->size));
                         iter = m_writers.erase(iter);
                     }
                 }
@@ -561,7 +561,7 @@ class transport : public channel, public std::enable_shared_from_this<transport>
 
                 if (iter->second.attempt++ == move_attempts())
                 {
-                    m_io.post(boost::bind(on_error, boost::asio::error::broken_pipe));
+                    boost::asio::post(m_io, boost::bind(on_error, boost::asio::error::broken_pipe));
                     return;
                 }
 
@@ -606,10 +606,10 @@ class transport : public channel, public std::enable_shared_from_this<transport>
             auto tail = m_buffer.tail();
             if (m_buffer.add(buffer) == tail)
             {
-                m_io.post(boost::bind(caller, boost::asio::error::no_buffer_space, 0));
+                boost::asio::post(m_io, boost::bind(caller, boost::asio::error::no_buffer_space, 0));
 
                 if (on_error)
-                    m_io.post(boost::bind(on_error, boost::asio::error::no_buffer_space));
+                    boost::asio::post(m_io, boost::bind(on_error, boost::asio::error::no_buffer_space));
 
                 return;
             }
@@ -748,7 +748,7 @@ class transport : public channel, public std::enable_shared_from_this<transport>
             auto iter = m_readers.begin();
             while (iter != m_readers.end())
             {
-                m_io.post(boost::bind(iter->callback, err, iter->read));
+                boost::asio::post(m_io, boost::bind(iter->callback, err, iter->read));
                 ++iter;
             }
 
@@ -775,7 +775,7 @@ class transport : public channel, public std::enable_shared_from_this<transport>
                     else
                     {
                         if(on_error)
-                            m_io.post(boost::bind(on_error, boost::asio::error::no_buffer_space));
+                            boost::asio::post(m_io, boost::bind(on_error, boost::asio::error::no_buffer_space));
 
                         break;
                     }
@@ -874,7 +874,7 @@ class transport : public channel, public std::enable_shared_from_this<transport>
                         m_edge.time = g_zero_time;
                     }
 
-                    m_io.post(boost::bind(iter->callback, boost::system::error_code(), iter->read));
+                    boost::asio::post(m_io, boost::bind(iter->callback, boost::system::error_code(), iter->read));
                     m_readers.erase(iter);
                 }
             }
@@ -1146,7 +1146,7 @@ protected:
     inline void run() noexcept(true)
     {
         std::weak_ptr<transport> weak = shared_from_this();
-        m_io.post([weak]()
+        boost::asio::post(m_io, [weak]()
         {
             auto ptr = weak.lock();
             if (ptr)
@@ -1235,7 +1235,7 @@ public:
 
         if (m_connector.status() != state::initial)
         {
-            m_io.post(boost::bind(handler, boost::asio::error::no_permission));
+            boost::asio::post(m_io, boost::bind(handler, boost::asio::error::no_permission));
             return;
         }
 
@@ -1244,7 +1244,7 @@ public:
 
         if (ec)
         {
-            m_io.post(boost::bind(handler, ec));
+            boost::asio::post(m_io, boost::bind(handler, ec));
             return;
         }
 
@@ -1260,7 +1260,7 @@ public:
                 
         if (m_connector.status() != state::initial)
         {
-            m_io.post(boost::bind(handler, boost::asio::error::no_permission));
+            boost::asio::post(m_io, boost::bind(handler, boost::asio::error::no_permission));
             return;
         }
 
@@ -1269,7 +1269,7 @@ public:
 
         if (ec)
         {
-            m_io.post(boost::bind(handler, ec));
+            boost::asio::post(m_io, boost::bind(handler, ec));
             return;
         }
 
@@ -1289,7 +1289,7 @@ public:
             boost::system::error_code ec = status <= state::initial ? boost::asio::error::not_connected : 
                 status <= state::connecting ? boost::asio::error::try_again : boost::asio::error::bad_descriptor;
 
-            m_io.post(boost::bind(handler, ec, 0));
+            boost::asio::post(m_io, boost::bind(handler, ec, 0));
             return;
         }
 
@@ -1307,7 +1307,7 @@ public:
             boost::system::error_code ec = status <= state::initial ? boost::asio::error::not_connected : 
                 status <= state::connecting ? boost::asio::error::try_again : boost::asio::error::bad_descriptor;
 
-            m_io.post(boost::bind(handler, ec, 0));
+            boost::asio::post(m_io, boost::bind(handler, ec, 0));
             return;
         }
 
