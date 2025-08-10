@@ -1,5 +1,9 @@
 # Change Log
 
+## 1.2.3 (Aug 10, 2025)
+
+- Boost 1.88 compatibility.
+
 ## 1.2.2 (Feb 26, 2025)
 
 - The CMake project has been reorganized.

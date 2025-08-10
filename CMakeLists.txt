@@ -4,7 +4,7 @@ message("***** tubus ***** ")
 
 cmake_minimum_required(VERSION 3.21)
 
-project(tubus VERSION 1.2.2 DESCRIPTION "Self obfuscated streaming transport protocol based on UDP" LANGUAGES CXX)
+project(tubus VERSION 1.2.3 DESCRIPTION "Self obfuscated streaming transport protocol based on UDP" LANGUAGES CXX)
 
 option(TUBUS_USE_SHARED_LIB "Build shared library" ${BUILD_SHARED_LIBS})
 option(TUBUS_SKIP_TEST_RULES "Don't generate test rules" ON)
