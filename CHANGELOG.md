@@ -1,8 +1,9 @@
 # Change Log
 
-## 1.2.3 (Aug 10, 2025)
+## 1.2.3 (Sep 3, 2025)
 
 - Boost 1.88 compatibility.
+- Adjusted the default packet size limit.
 
 ## 1.2.2 (Feb 26, 2025)
 

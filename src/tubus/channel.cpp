@@ -24,7 +24,7 @@
 #include <boost/date_time/posix_time/posix_time_io.hpp>
 
 #ifndef TUBUS_MAX_PACKET_SIZE
-#define TUBUS_MAX_PACKET_SIZE 1432u
+#define TUBUS_MAX_PACKET_SIZE 1406u
 #endif
 
 #ifndef TUBUS_PING_TIMEOUT

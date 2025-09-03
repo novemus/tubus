@@ -1,8 +1,9 @@
 plexus (1.2.3-1) unstable; urgency=low
 
   * Boost 1.88 compatibility.
+  * Adjusted the default packet size limit.
 
- -- Novemus Band <nineletters@mail.ru>  Sun, 10 Aug 2025 14:50:00 +0300
+ -- Novemus Band <nineletters@mail.ru>  Wed, 03 Sep 2025 20:07:00 +0300
 
 tubus (1.2.2-1) unstable; urgency=low
 
