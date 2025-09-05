@@ -23,42 +23,6 @@
 #include <boost/date_time/posix_time/posix_time_types.hpp>
 #include <boost/date_time/posix_time/posix_time_io.hpp>
 
-#ifndef TUBUS_MAX_PACKET_SIZE
-#define TUBUS_MAX_PACKET_SIZE 1406u
-#endif
-
-#ifndef TUBUS_PING_TIMEOUT
-#define TUBUS_PING_TIMEOUT 30l
-#endif
-
-#ifndef TUBUS_SHUTDOWN_TIMEOUT
-#define TUBUS_SHUTDOWN_TIMEOUT 2000l
-#endif
-
-#ifndef TUBUS_CONNECT_TIMEOUT
-#define TUBUS_CONNECT_TIMEOUT 30l
-#endif
-
-#ifndef TUBUS_ACCEPT_TIMEOUT
-#define TUBUS_ACCEPT_TIMEOUT 30l
-#endif
-
-#ifndef TUBUS_SNIPPET_FLIGHT
-#define TUBUS_SNIPPET_FLIGHT 48u
-#endif
-
-#ifndef TUBUS_MOVE_ATTEMPTS
-#define TUBUS_MOVE_ATTEMPTS 32l
-#endif
-
-#ifndef TUBUS_RECEIVE_BUFFER_SIZE
-#define TUBUS_RECEIVE_BUFFER_SIZE 5ull * 1024 * 1024
-#endif
-
-#ifndef TUBUS_SEND_BUFFER_SIZE
-#define TUBUS_SEND_BUFFER_SIZE 5ull * 1024 * 1024
-#endif
-
 namespace tubus {
 
 const boost::posix_time::ptime g_zero_time(boost::gregorian::date(1970, 1, 1));
@@ -104,55 +68,55 @@ class transport : public channel, public std::enable_shared_from_this<transport>
 
     inline static size_t max_packet_size() noexcept(true)
     {
-        static size_t s_size(getenv("TUBUS_MAX_PACKET_SIZE", TUBUS_MAX_PACKET_SIZE));
+        static size_t s_size(getenv("TUBUS_MAX_PACKET_SIZE", 1406ul));
         return s_size;
     }
 
     inline static boost::posix_time::time_duration ping_timeout() noexcept(true)
     {
-        static boost::posix_time::seconds s_timeout(getenv("TUBUS_PING_TIMEOUT", TUBUS_PING_TIMEOUT));
+        static boost::posix_time::seconds s_timeout(getenv("TUBUS_PING_TIMEOUT", 30l));
         return s_timeout;
     }
 
     inline static boost::posix_time::time_duration shutdown_timeout() noexcept(true)
     {
-        static boost::posix_time::milliseconds s_timeout(getenv("TUBUS_SHUTDOWN_TIMEOUT", TUBUS_SHUTDOWN_TIMEOUT));
+        static boost::posix_time::milliseconds s_timeout(getenv("TUBUS_SHUTDOWN_TIMEOUT", 2000l));
         return s_timeout;
     }
 
     inline static boost::posix_time::time_duration connect_timeout() noexcept(true)
     {
-        static boost::posix_time::seconds s_timeout(getenv("TUBUS_CONNECT_TIMEOUT", TUBUS_CONNECT_TIMEOUT));
+        static boost::posix_time::seconds s_timeout(getenv("TUBUS_CONNECT_TIMEOUT", 30l));
         return s_timeout;
     }
 
     inline static boost::posix_time::time_duration accept_timeout() noexcept(true)
     {
-        static boost::posix_time::seconds s_timeout(getenv("TUBUS_ACCEPT_TIMEOUT", TUBUS_ACCEPT_TIMEOUT));
+        static boost::posix_time::seconds s_timeout(getenv("TUBUS_ACCEPT_TIMEOUT", 30l));
         return s_timeout;
     }
 
     inline static size_t snippet_flight() noexcept(true)
     {
-        static size_t s_flight(getenv("TUBUS_SNIPPET_FLIGHT", TUBUS_SNIPPET_FLIGHT));
+        static size_t s_flight(getenv("TUBUS_SNIPPET_FLIGHT", 48ul));
         return s_flight;
     }
 
     inline static size_t move_attempts() noexcept(true)
     {
-        static size_t s_attempts(getenv("TUBUS_MOVE_ATTEMPTS", TUBUS_MOVE_ATTEMPTS));
+        static size_t s_attempts(getenv("TUBUS_MOVE_ATTEMPTS", 32ul));
         return s_attempts;
     }
 
     inline static size_t receive_buffer_size() noexcept(true)
     {
-        static size_t s_size(getenv("TUBUS_RECEIVE_BUFFER_SIZE", TUBUS_RECEIVE_BUFFER_SIZE));
+        static size_t s_size(getenv("TUBUS_RECEIVE_BUFFER_SIZE", 5ul * 1024ul * 1024ul));
         return s_size;
     }
 
     inline static size_t send_buffer_size() noexcept(true)
     {
-        static size_t s_size(getenv("TUBUS_SEND_BUFFER_SIZE", TUBUS_SEND_BUFFER_SIZE));
+        static size_t s_size(getenv("TUBUS_SEND_BUFFER_SIZE", 5ul * 1024ul * 1024ul));
         return s_size;
     }
 
@@ -1057,24 +1021,48 @@ protected:
         }
 
         std::weak_ptr<transport> weak = shared_from_this();
-        auto buffer = create_buffer(max_packet_size());
-        m_socket.async_receive(buffer, [weak, buffer](const boost::system::error_code& error, size_t size)
+
+        boost::system::error_code err;
+        auto size = m_socket.available(err);
+
+        if (size > 0)
         {
-            auto ptr = weak.lock();
-            if (ptr)
+            auto buffer = create_buffer(size);
+            m_socket.async_receive(buffer, [weak, buffer](const boost::system::error_code& error, size_t size)
             {
-                if (error)
+                auto ptr = weak.lock();
+                if (ptr)
                 {
-                    if (error != boost::asio::error::operation_aborted)
+                    if (error)
+                    {
                         ptr->mistake(error);
+                    }
+                    else
+                    {
+                        ptr->feed(buffer.slice(0, size));
+                        ptr->consume();
+                    }
                 }
-                else
+            });
+        }
+        else
+        {
+            m_socket.async_wait(boost::asio::ip::udp::socket::wait_read, [weak](const boost::system::error_code& error)
+            {
+                auto ptr = weak.lock();
+                if (ptr)
                 {
-                    ptr->feed(buffer.slice(0, size));
+                    if (error)
+                    {
+                        ptr->mistake(error);
+                    }
+                    else
+                    {
+                        ptr->consume();
+                    }
                 }
-                ptr->consume();
-            }
-        });
+            });
+        }
     }
 
     void produce() noexcept(true)
