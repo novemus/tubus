@@ -37,7 +37,6 @@
         {
             "name": "windows-shared-debug",
             "displayName": "Shared (Debug)",
-            "description": "Configure Debug shared build",
             "inherits": ["shared-config-base", "vcpkg-config-base"],
             "cacheVariables": {
                 "VCPKG_TARGET_TRIPLET": "x64-windows",
@@ -54,7 +53,6 @@
         {
             "name": "windows-shared-release",
             "displayName": "Shared (Release)",
-            "description": "Configure Release shared build",
             "inherits": "windows-shared-debug",
             "cacheVariables": {
                 "CMAKE_CONFIGURATION_TYPES": "Release",
@@ -62,9 +60,17 @@
             }
         },
         {
+            "name": "windows-shared-relwithdebinfo",
+            "displayName": "Shared (RelWithDebInfo)",
+            "inherits": "windows-shared-debug",
+            "cacheVariables": {
+                "CMAKE_CONFIGURATION_TYPES": "RelWithDebInfo",
+                "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+            }
+        },
+        {
             "name": "windows-static-debug",
             "displayName": "Static (Debug)",
-            "description": "Configure Debug static build",
             "inherits": ["static-config-base", "vcpkg-config-base"],
             "cacheVariables": {
                 "VCPKG_TARGET_TRIPLET": "x64-windows-static",
@@ -79,9 +85,17 @@
             }
         },
         {
+            "name": "windows-static-relwithdebinfo",
+            "displayName": "Static (RelWithDebInfo)",
+            "inherits": "windows-static-debug",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+                "CMAKE_CONFIGURATION_TYPES": "RelWithDebInfo"
+            }
+        },
+        {
             "name": "windows-static-release",
             "displayName": "Static (Release)",
-            "description": "Configure Release static build",
             "inherits": "windows-static-debug",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release",
@@ -91,7 +105,6 @@
         {
             "name": "linux-static-release",
             "displayName": "Static (Release)",
-            "description": "Configure static Release build",
             "inherits": "static-config-base",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release"
@@ -103,9 +116,16 @@
             }
         },
         {
+            "name": "linux-static-relwithdebinfo",
+            "displayName": "Static (RelWithDebInfo)",
+            "inherits": "linux-static-release",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+            }
+        },
+        {
             "name": "linux-static-debug",
             "displayName": "Static (Debug)",
-            "description": "Configure static Debug build",
             "inherits": "linux-static-release",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug"
@@ -114,7 +134,6 @@
         {
             "name": "linux-shared-release",
             "displayName": "Shared (Release)",
-            "description": "Configure static Release build",
             "inherits": "shared-config-base",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release"
@@ -126,9 +145,16 @@
             }
         },
         {
+            "name": "linux-shared-relwithdebinfo",
+            "displayName": "Shared (RelWithDebInfo)",
+            "inherits": "linux-shared-release",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+            }
+        },
+        {
             "name": "linux-shared-debug",
             "displayName": "Shared (Debug)",
-            "description": "Configure static Debug build",
             "inherits": "linux-shared-release",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug"
@@ -137,7 +163,6 @@
         {
             "name": "darwin-shared-debug",
             "displayName": "Shared (Debug)",
-            "description": "Configure Debug shared build",
             "inherits": ["shared-config-base", "vcpkg-config-base"],
             "cacheVariables": {
                 "VCPKG_TARGET_TRIPLET": "x64-osx-dynamic",
@@ -150,9 +175,16 @@
             }
         },
         {
+            "name": "darwin-shared-relwithdebinfo",
+            "displayName": "Shared (RelWithDebInfo)",
+            "inherits": "darwin-shared-debug",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+            }
+        },
+        {
             "name": "darwin-shared-release",
             "displayName": "Shared (Release)",
-            "description": "Configure Release shared build",
             "inherits": "darwin-shared-debug",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release"
@@ -161,7 +193,6 @@
         {
             "name": "darwin-static-debug",
             "displayName": "Static (Debug)",
-            "description": "Configure Debug static build",
             "inherits": ["static-config-base", "vcpkg-config-base"],
             "cacheVariables": {
                 "VCPKG_TARGET_TRIPLET": "x64-osx",
@@ -174,9 +205,16 @@
             }
         },
         {
+            "name": "darwin-static-relwithdebinfo",
+            "displayName": "Static (RelWithDebInfo)",
+            "inherits": "darwin-static-debug",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+            }
+        },
+        {
             "name": "darwin-static-release",
             "displayName": "Static (Release)",
-            "description": "Configure Release static build",
             "inherits": "darwin-static-debug",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release"
@@ -208,6 +246,18 @@
             }
         },
         {
+            "name": "linux-static-relwithdebinfo",
+            "displayName": "Test",
+            "description": "All project tests",
+            "configurePreset": "linux-static-relwithdebinfo",
+            "inherits": "test-base",
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Linux"
+            }
+        },
+        {
             "name": "linux-static-debug",
             "displayName": "Test",
             "description": "All project tests",
@@ -224,6 +274,18 @@
             "displayName": "Test",
             "description": "All project tests",
             "configurePreset": "linux-shared-release",
+            "inherits": "test-base",
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Linux"
+            }
+        },
+        {
+            "name": "linux-shared-relwithdebinfo",
+            "displayName": "Test",
+            "description": "All project tests",
+            "configurePreset": "linux-shared-relwithdebinfo",
             "inherits": "test-base",
             "condition": {
                 "type": "equals",
@@ -257,6 +319,19 @@
             }
         },
         {
+            "name": "windows-static-relwithdebinfo",
+            "configurePreset": "windows-static-relwithdebinfo",
+            "displayName": "Test",
+            "description": "All project tests",
+            "inherits": "test-base",
+            "configuration": "RelWithDebInfo",
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Windows"
+            }
+        },
+        {
             "name": "windows-static-release",
             "configurePreset": "windows-static-release",
             "displayName": "Test",
@@ -276,6 +351,19 @@
             "description": "All project tests",
             "inherits": "test-base",
             "configuration": "Debug",
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Windows"
+            }
+        },
+        {
+            "name": "windows-shared-relwithdebinfo",
+            "configurePreset": "windows-shared-relwithdebinfo",
+            "displayName": "Test",
+            "description": "All project tests",
+            "inherits": "test-base",
+            "configuration": "RelWithDebInfo",
             "condition": {
                 "type": "equals",
                 "lhs": "${hostSystemName}",
@@ -308,6 +396,18 @@
             }
         },
         {
+            "name": "darwin-static-relwithdebinfo",
+            "configurePreset": "darwin-static-relwithdebinfo",
+            "displayName": "Test",
+            "description": "All project tests",
+            "inherits": "test-base",
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Darwin"
+            }
+        },
+        {
             "name": "darwin-static-debug",
             "configurePreset": "darwin-static-debug",
             "displayName": "Test",
@@ -322,6 +422,18 @@
         {
             "name": "darwin-shared-release",
             "configurePreset": "darwin-shared-release",
+            "displayName": "Test",
+            "description": "All project tests",
+            "inherits": "test-base",
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Darwin"
+            }
+        },
+        {
+            "name": "darwin-shared-relwithdebinfo",
+            "configurePreset": "darwin-shared-relwithdebinfo",
             "displayName": "Test",
             "description": "All project tests",
             "inherits": "test-base",
@@ -368,6 +480,17 @@
             }
         },
         {
+            "name": "windows-shared-relwithdebinfo",
+            "displayName": "RelWithDebInfo",
+            "configuration": "RelWithDebInfo",
+            "configurePreset": "windows-shared-relwithdebinfo",
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Windows"
+            }
+        },
+        {
             "name": "windows-static-debug",
             "displayName": "Debug",
             "configuration": "Debug",
@@ -390,10 +513,32 @@
             }
         },
         {
+            "name": "windows-static-relwithdebinfo",
+            "displayName": "RelWithDebInfo",
+            "configuration": "RelWithDebInfo",
+            "configurePreset": "windows-static-relwithdebinfo",
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Windows"
+            }
+        },
+        {
             "name": "linux-shared-debug",
             "displayName": "Debug",
             "configuration": "Debug",
             "configurePreset": "linux-shared-debug",
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Linux"
+            }
+        },
+        {
+            "name": "linux-shared-relwithdebinfo",
+            "displayName": "RelWithDebInfo",
+            "configuration": "RelWithDebInfo",
+            "configurePreset": "linux-shared-relwithdebinfo",
             "condition": {
                 "type": "equals",
                 "lhs": "${hostSystemName}",
@@ -416,6 +561,17 @@
             "displayName": "Debug",
             "configuration": "Debug",
             "configurePreset": "linux-static-debug",
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Linux"
+            }
+        },
+        {
+            "name": "linux-static-relwithdebinfo",
+            "displayName": "RelWithDebInfo",
+            "configuration": "RelWithDebInfo",
+            "configurePreset": "linux-static-relwithdebinfo",
             "condition": {
                 "type": "equals",
                 "lhs": "${hostSystemName}",
@@ -456,6 +612,17 @@
             }
         },
         {
+            "name": "darwin-shared-relwithdebinfo",
+            "displayName": "RelWithDebInfo",
+            "configuration": "RelWithDebInfo",
+            "configurePreset": "darwin-shared-relwithdebinfo",
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Darwin"
+            }
+        },
+        {
             "name": "darwin-static-debug",
             "displayName": "Debug",
             "configuration": "Debug",
@@ -476,6 +643,17 @@
                 "lhs": "${hostSystemName}",
                 "rhs": "Darwin"
             }
+        },
+        {
+            "name": "darwin-static-relwithdebinfo",
+            "displayName": "RelWithDebInfo",
+            "configuration": "RelWithDebInfo",
+            "configurePreset": "darwin-static-relwithdebinfo",
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Darwin"
+            }
         }
     ],
     "packagePresets": [
@@ -483,7 +661,7 @@
             "name": "debian-package-lib",
             "displayName": "libtubus (DEB)",
             "description": "Debian library package",
-            "configurePreset": "linux-shared-release",
+            "configurePreset": "linux-shared-relwithdebinfo",
             "condition": {
                 "type": "equals",
                 "lhs": "${hostSystemName}",
@@ -493,8 +671,7 @@
                 "DEB"
             ],
             "configurations": [
-                "Release",
-                "Debug"
+                "RelWithDebInfo"
             ],
             "variables": {
                 "CPACK_PACKAGING_INSTALL_PREFIX": "/opt",
@@ -517,7 +694,7 @@
             "name": "debian-package-dev",
             "displayName": "libtubus-dev (DEB)",
             "description": "Debian development package",
-            "configurePreset": "linux-static-release",
+            "configurePreset": "linux-static-relwithdebinfo",
             "condition": {
                 "type": "equals",
                 "lhs": "${hostSystemName}",
@@ -527,8 +704,7 @@
                 "DEB"
             ],
             "configurations": [
-                "Release",
-                "Debug"
+                "RelWithDebInfo"
             ],
             "variables": {
                 "CPACK_PACKAGING_INSTALL_PREFIX": "/opt",
@@ -552,7 +728,7 @@
             "name": "windows-archive",
             "displayName": "Archive (ZIP)",
             "description": "Portable ZIP archive",
-            "configurePreset": "windows-static-release",
+            "configurePreset": "windows-static-relwithdebinfo",
             "condition": {
                 "type": "equals",
                 "lhs": "${hostSystemName}",
@@ -562,8 +738,7 @@
                 "ZIP"
             ],
             "configurations": [
-                "Release",
-                "Debug"
+                "RelWithDebInfo"
             ],
             "variables": {
                 "CPACK_COMPONENTS_ALL": "runtime_files;library_files;archive_files;pdb_files;header_files;cmake_files;dev_doc_files",
@@ -582,15 +757,15 @@
             "steps": [
                 {
                     "type": "configure",
-                    "name": "windows-static-release"
+                    "name": "windows-static-relwithdebinfo"
                 },
                 {
                     "type": "build",
-                    "name": "windows-static-release"
+                    "name": "windows-static-relwithdebinfo"
                 },
                 {
                     "type": "test",
-                    "name": "windows-static-release"
+                    "name": "windows-static-relwithdebinfo"
                 },
                 {
                     "type": "package",
@@ -605,15 +780,15 @@
             "steps": [
                 {
                     "type": "configure",
-                    "name": "linux-shared-release"
+                    "name": "linux-shared-relwithdebinfo"
                 },
                 {
                     "type": "build",
-                    "name": "linux-shared-release"
+                    "name": "linux-shared-relwithdebinfo"
                 },
                 {
                     "type": "test",
-                    "name": "linux-shared-release"
+                    "name": "linux-shared-relwithdebinfo"
                 },
                 {
                     "type": "package",
@@ -628,15 +803,15 @@
             "steps": [
                 {
                     "type": "configure",
-                    "name": "linux-static-release"
+                    "name": "linux-static-relwithdebinfo"
                 },
                 {
                     "type": "build",
-                    "name": "linux-static-release"
+                    "name": "linux-static-relwithdebinfo"
                 },
                 {
                     "type": "test",
-                    "name": "linux-static-release"
+                    "name": "linux-static-relwithdebinfo"
                 },
                 {
                     "type": "package",
