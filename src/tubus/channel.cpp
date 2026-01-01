@@ -74,7 +74,7 @@ class transport : public channel, public std::enable_shared_from_this<transport>
 
     inline static boost::posix_time::time_duration ping_timeout() noexcept(true)
     {
-        static boost::posix_time::seconds s_timeout(getenv("TUBUS_PING_TIMEOUT", 30l));
+        static boost::posix_time::seconds s_timeout(getenv("TUBUS_PING_TIMEOUT", 15l));
         return s_timeout;
     }
 
