@@ -747,6 +747,54 @@
             },
             "packageName": "tubus",
             "packageDirectory": ".."
+        },
+        {
+            "name": "linux-archive",
+            "displayName": "Archive (ZIP)",
+            "description": "Portable ZIP archive",
+            "configurePreset": "linux-static-relwithdebinfo",
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Linux"
+            },
+            "generators": [
+                "ZIP"
+            ],
+            "configurations": [
+                "RelWithDebInfo"
+            ],
+            "variables": {
+                "CPACK_COMPONENTS_ALL": "runtime_files;library_files;archive_files;header_files;cmake_files;dev_doc_files",
+                "CPACK_ARCHIVE_COMPONENT_INSTALL": "ON",
+                "CPACK_COMPONENTS_ALL_IN_ONE_PACKAGE": "ON"
+            },
+            "packageName": "tubus",
+            "packageDirectory": ".."
+        },
+        {
+            "name": "darwin-archive",
+            "displayName": "Archive (ZIP)",
+            "description": "Portable ZIP archive",
+            "configurePreset": "darwin-static-relwithdebinfo",
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Darwin"
+            },
+            "generators": [
+                "ZIP"
+            ],
+            "configurations": [
+                "RelWithDebInfo"
+            ],
+            "variables": {
+                "CPACK_COMPONENTS_ALL": "runtime_files;library_files;archive_files;header_files;cmake_files;dev_doc_files",
+                "CPACK_ARCHIVE_COMPONENT_INSTALL": "ON",
+                "CPACK_COMPONENTS_ALL_IN_ONE_PACKAGE": "ON"
+            },
+            "packageName": "tubus",
+            "packageDirectory": ".."
         }
     ],
     "workflowPresets": [
