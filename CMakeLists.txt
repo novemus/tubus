@@ -138,17 +138,10 @@ if(NOT TUBUS_SKIP_INSTALL_RULES AND NOT CMAKE_SKIP_INSTALL_RULES)
     install(FILES ${HEADERS} DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME}" COMPONENT header_files)
 
     if(MSVC)
-        if(BUILD_SHARED_LIBS)
-            install(FILES "$<TARGET_PDB_FILE:${LIBTUBUS}>" COMPONENT pdb_files
-                CONFIGURATIONS Debug RelWithDebInfo
-                DESTINATION "${CMAKE_INSTALL_LIBDIR}"
-                OPTIONAL)
-        else()
-            install(FILES "$<TARGET_FILE_DIR:${LIBTUBUS}>/$<TARGET_FILE_PREFIX:${LIBTUBUS}>$<TARGET_FILE_BASE_NAME:${LIBTUBUS}>-static.pdb" COMPONENT pdb_files
-                CONFIGURATIONS Debug RelWithDebInfo
-                DESTINATION "${CMAKE_INSTALL_LIBDIR}"
-                OPTIONAL)
-        endif()
+        install(FILES "$<TARGET_PDB_FILE:${LIBTUBUS}>" COMPONENT pdb_files
+            CONFIGURATIONS Debug RelWithDebInfo
+            DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+            OPTIONAL)
     endif()
 endif()
 
