@@ -49,6 +49,10 @@ add_library(${PROJECT_NAME}::${LIBTUBUS} ALIAS ${LIBTUBUS})
 
 generate_export_header(${LIBTUBUS} EXPORT_FILE_NAME export_header/tubus/export.h)
 
+if (NOT BUILD_SHARED_LIBS)
+    target_compile_definitions(${LIBTUBUS} PRIVATE LIBTUBUS_STATIC_DEFINE)
+endif()
+
 set(SOURCES "${CMAKE_CURRENT_BINARY_DIR}/export_header/tubus/export.h"
     src/tubus/channel.h
     src/tubus/buffer.h
@@ -163,7 +167,7 @@ if(NOT TUBUS_SKIP_TEST_RULES)
     target_link_libraries(${TUBUS_TEST} PRIVATE $<TARGET_OBJECTS:${LIBTUBUS}> OpenSSL::Crypto OpenSSL::SSL Boost::unit_test_framework)
     target_include_directories(${TUBUS_TEST} PRIVATE "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>" "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/export_header>")
 
-    set_target_properties(${TUBUS_TEST} PROPERTIES DEBUG_POSTFIX "d" COMPILE_FLAGS -DLIBTUBUS_STATIC_DEFINE)
+    set_target_properties(${TUBUS_TEST} PROPERTIES DEBUG_POSTFIX "d")
     target_compile_features(${TUBUS_TEST} PRIVATE cxx_std_17)
 
     if(WIN32)
