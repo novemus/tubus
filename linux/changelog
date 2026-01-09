@@ -1,4 +1,14 @@
-plexus (1.2.3-1) unstable; urgency=low
+tubus (1.2.4-1) unstable; urgency=low
+
+  * Added RelWithDebInfo presets.
+  * Added RPM package presets.
+  * Improved build scripts.
+  * Introduced Github workflow.
+  * Reduced default keepalive timeout.
+
+ -- Novemus Band <nineletters@mail.ru>  Sun, 11 Jan 2026 14:51:00 +0300
+
+tubus (1.2.3-1) unstable; urgency=low
 
   * Boost 1.88 compatibility.
   * Adjusted the default packet size limit.

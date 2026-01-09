@@ -1,0 +1,8 @@
+include("@CMAKE_CURRENT_BINARY_DIR@/CPackConfig.cmake")
+
+set(CPACK_PACKAGE_NAME "@LIBTUBUS@-devel")
+set(CPACK_PACKAGE_FILE_NAME "@LIBTUBUS@-devel-@PROJECT_VERSION@-@CPACK_PACKAGE_RELEASE@.@CMAKE_HOST_SYSTEM_PROCESSOR@")
+set(CPACK_RPM_PACKAGE_SUMMARY "C++ development library for UDP streaming")
+set(CPACK_RPM_PACKAGE_DESCRIPTION "This library provides a C++ implementation of a self obfuscated streaming\ntransport protocol based on UDP.")
+set(CPACK_RPM_PACKAGE_REQUIRES "boost-devel, openssl-devel, libtubus = %{version}-%{release}")
+set(CPACK_COMPONENTS_ALL "archive_files;header_files;cmake_files")

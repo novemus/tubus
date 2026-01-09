@@ -1,5 +1,13 @@
 # Change Log
 
+## 1.2.4 (Jan 11, 2026)
+
+- Added RelWithDebInfo presets.
+- Added RPM package presets.
+- Improved build scripts.
+- Introduced Github workflow.
+- Reduced default keepalive timeout.
+
 ## 1.2.3 (Sep 3, 2025)
 
 - Boost 1.88 compatibility.

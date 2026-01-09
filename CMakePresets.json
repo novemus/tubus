@@ -9,8 +9,8 @@
                 "TUBUS_SKIP_INSTALL_RULES": "OFF",
                 "TUBUS_SKIP_PACKAGE_RULES": "OFF"
             },
-            "installDir": "${sourceParentDir}/out/$env{TARGET_OS}/$env{TARGET_ARCH}/install",
-            "binaryDir": "${sourceParentDir}/out/$env{TARGET_OS}/$env{TARGET_ARCH}/build/${sourceDirName}/${presetName}"
+            "installDir": "${sourceDir}/out/$env{TARGET_OS}/$env{TARGET_ARCH}/install",
+            "binaryDir": "${sourceDir}/out/$env{TARGET_OS}/$env{TARGET_ARCH}/build/${presetName}"
         },
         {
             "name": "relwithdebinfo-base",
@@ -197,18 +197,9 @@
                 "RelWithDebInfo"
             ],
             "variables": {
-                "CPACK_PACKAGING_INSTALL_PREFIX": "/opt",
-                "CPACK_DEBIAN_PACKAGE_RELEASE": "1",
-                "CPACK_DEBIAN_PACKAGE_MAINTAINER": "Community",
                 "CPACK_PACKAGE_DESCRIPTION_SUMMARY": "UDP streaming library",
                 "CPACK_PACKAGE_DESCRIPTION": "This library implements a self obfuscated streaming transport\nprotocol based on UDP.",
-                "CPACK_COMPONENTS_ALL": "library_files;lib_deb_files",
-                "CPACK_DEBIAN_FILE_NAME": "DEB-DEFAULT",
-                "CPACK_DEBIAN_PACKAGE_SHLIBDEPS": "ON",
-                "CPACK_DEBIAN_PACKAGE_GENERATE_SHLIBS": "ON",
-                "CPACK_DEBIAN_DEBUGINFO_PACKAGE": "ON",
-                "CPACK_DEB_COMPONENT_INSTALL": "ON",
-                "CPACK_COMPONENTS_ALL_IN_ONE_PACKAGE": "ON"
+                "CPACK_COMPONENTS_ALL": "library_files;lib_deb_files"
             },
             "packageName": "libtubus",
             "packageDirectory": ".."
@@ -230,21 +221,52 @@
                 "RelWithDebInfo"
             ],
             "variables": {
-                "CPACK_PACKAGING_INSTALL_PREFIX": "/opt",
-                "CPACK_DEBIAN_PACKAGE_RELEASE": "1",
-                "CPACK_DEBIAN_PACKAGE_MAINTAINER": "Community",
-                "CPACK_DEBIAN_PACKAGE_DEPENDS": "libboost-dev (>= 1.74) | libboost1.81-dev, libtubus (= 1.2.3-1)",
+                "CPACK_DEBIAN_PACKAGE_DEPENDS": "libboost-dev (>= 1.74) | libboost1.81-dev, libtubus (= 1.2.4-1)",
                 "CPACK_PACKAGE_DESCRIPTION_SUMMARY": "C++ development library for UDP streaming",
                 "CPACK_PACKAGE_DESCRIPTION": "This library provides a C++ implementation of a self obfuscated streaming\ntransport protocol based on UDP.",
-                "CPACK_COMPONENTS_ALL": "archive_files;header_files;cmake_files;dev_deb_files;dev_doc_files",
-                "CPACK_DEBIAN_FILE_NAME": "DEB-DEFAULT",
-                "CPACK_DEBIAN_PACKAGE_SHLIBDEPS": "ON",
-                "CPACK_DEBIAN_PACKAGE_GENERATE_SHLIBS": "ON",
-                "CPACK_DEBIAN_DEBUGINFO_PACKAGE": "ON",
-                "CPACK_DEB_COMPONENT_INSTALL": "ON",
-                "CPACK_COMPONENTS_ALL_IN_ONE_PACKAGE": "ON"
+                "CPACK_COMPONENTS_ALL": "archive_files;header_files;cmake_files;dev_deb_files;dev_doc_files"
             },
             "packageName": "libtubus-dev",
+            "packageDirectory": ".."
+        },
+        {
+            "name": "rpm-package-lib",
+            "displayName": "libtubus (RPM)",
+            "description": "RPM library package",
+            "configurePreset": "shared-relwithdebinfo",
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Linux"
+            },
+            "generators": [
+                "RPM"
+            ],
+            "configurations": [
+                "RelWithDebInfo"
+            ],
+            "configFile": "${sourceDir}/out/$env{TARGET_OS}/$env{TARGET_ARCH}/build/shared-relwithdebinfo/rpm-library.cmake",
+            "packageName": "libtubus",
+            "packageDirectory": ".."
+        },
+        {
+            "name": "rpm-package-dev",
+            "displayName": "libtubus-devel (RPM)",
+            "description": "RPM development package",
+            "configurePreset": "static-relwithdebinfo",
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Linux"
+            },
+            "generators": [
+                "RPM"
+            ],
+            "configurations": [
+                "RelWithDebInfo"
+            ],
+            "configFile":  "${sourceDir}/out/$env{TARGET_OS}/$env{TARGET_ARCH}/build/shared-relwithdebinfo/rpm-devel.cmake",
+            "packageName": "libtubus-devel",
             "packageDirectory": ".."
         },
         {
