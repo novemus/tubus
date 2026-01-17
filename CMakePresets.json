@@ -221,7 +221,7 @@
                 "RelWithDebInfo"
             ],
             "variables": {
-                "CPACK_DEBIAN_PACKAGE_DEPENDS": "libboost-dev (>= 1.74) | libboost1.81-dev, libtubus (= 1.2.4-1)",
+                "CPACK_DEBIAN_PACKAGE_DEPENDS": "libboost-dev (>= 1.74) | libboost1.81-dev, libtubus (>= 1.2.4)",
                 "CPACK_PACKAGE_DESCRIPTION_SUMMARY": "C++ development library for UDP streaming",
                 "CPACK_PACKAGE_DESCRIPTION": "This library provides a C++ implementation of a self obfuscated streaming\ntransport protocol based on UDP.",
                 "CPACK_COMPONENTS_ALL": "archive_files;header_files;cmake_files;dev_deb_files;dev_doc_files"
