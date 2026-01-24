@@ -279,6 +279,7 @@
             ],
             "variables": {
                 "CPACK_RPM_PACKAGE_SUMMARY": "C++ development library for UDP streaming",
+                "CPACK_RPM_SPEC_MORE_DEFINE": "%define debug_package %{nil}\n%define __strip /bin/true\n%define __objcopy /bin/true",
                 "CPACK_RPM_PACKAGE_DESCRIPTION": "This library provides a C++ implementation of a self obfuscated streaming\ntransport protocol based on UDP.",
                 "CPACK_RPM_PACKAGE_REQUIRES": "boost-devel, openssl-devel, libtubus = %{version}-%{release}",
                 "CPACK_COMPONENTS_ALL": "archive_files;header_files;cmake_files;dev_doc_files"
