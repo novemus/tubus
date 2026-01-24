@@ -8,8 +8,8 @@ on:
 
 env:
   PACKAGE_RELEASE: ${{ github.run_number }}
-  MAINTAINER: "Novemus Band <nineletters@mail.ru>"
-  HOMEPAGE: "https://github.com/novemus/tubus"
+  MAINTAINER: "${{ vars.MAINTAINER }}"
+  HOMEPAGE: "${{ github.server_url }}/${{ github.repository }}"
 
 jobs:
   ubuntu:
@@ -31,25 +31,27 @@ jobs:
 
       - name: Build static
         run: |
-          cmake --preset static-relwithdebinfo -DCPACK_PACKAGE_RELEASE=${{ env.PACKAGE_RELEASE }}
+          cmake --preset static-relwithdebinfo \
+            -DCPACK_PACKAGE_RELEASE=${{ env.PACKAGE_RELEASE }} \
+            -DCPACK_DEBIAN_PACKAGE_MAINTAINER="${{ env.MAINTAINER }}" \
+            -DCPACK_DEBIAN_PACKAGE_HOMEPAGE="${{ env.HOMEPAGE }}" \
+            -DCPACK_INSTALL_CMAKE_PROJECTS="../static-relwithdebinfo;tubus;ALL;/;../shared-relwithdebinfo;tubus;ALL;/"
           cmake --build --preset static-relwithdebinfo --target all
           ctest --preset static-relwithdebinfo
 
       - name: Build shared
         run: |
-          cmake --preset shared-relwithdebinfo -DCPACK_PACKAGE_RELEASE=${{ env.PACKAGE_RELEASE }}
+          cmake --preset shared-relwithdebinfo \
+            -DCPACK_PACKAGE_RELEASE=${{ env.PACKAGE_RELEASE }} \
+            -DCPACK_DEBIAN_PACKAGE_MAINTAINER="${{ env.MAINTAINER }}" \
+            -DCPACK_DEBIAN_PACKAGE_HOMEPAGE="${{ env.HOMEPAGE }}"
           cmake --build --preset shared-relwithdebinfo --target all
           ctest --preset shared-relwithdebinfo
 
       - name: Build packages
         run: |
-          cpack --preset debian-package-lib \
-            -DCPACK_DEBIAN_PACKAGE_MAINTAINER="${{ env.MAINTAINER }}" \
-            -DCPACK_DEBIAN_PACKAGE_HOMEPAGE="${{ env.HOMEPAGE }}"
-          cpack --preset debian-package-dev \
-            -DCPACK_DEBIAN_PACKAGE_MAINTAINER="${{ env.MAINTAINER }}" \
-            -DCPACK_DEBIAN_PACKAGE_HOMEPAGE="${{ env.HOMEPAGE }}" \
-            -DCPACK_INSTALL_CMAKE_PROJECTS="${{ github.workspace }}/out/${{ env.TARGET_OS }}/${{ env.TARGET_ARCH }}/build/static-relwithdebinfo;tubus;ALL;/;.${{ github.workspace }}/out/${{ env.TARGET_OS }}/${{ env.TARGET_ARCH }}/build/shared-relwithdebinfo;tubus;ALL;/"
+          cpack --preset debian-package-lib
+          cpack --preset debian-package-dev
 
       - name: Upload packages
         uses: actions/upload-artifact@v4
@@ -78,25 +80,27 @@ jobs:
 
       - name: Build static
         run: |
-          cmake --preset static-relwithdebinfo -DCPACK_PACKAGE_RELEASE=${{ env.PACKAGE_RELEASE }}
+          cmake --preset static-relwithdebinfo \
+            -DCPACK_PACKAGE_RELEASE=${{ env.PACKAGE_RELEASE }} \
+            -DCPACK_RPM_PACKAGE_VENDOR="${{ env.MAINTAINER }}" \
+            -DCPACK_RPM_PACKAGE_URL="${{ env.HOMEPAGE }}" \
+            -DCPACK_INSTALL_CMAKE_PROJECTS="../static-relwithdebinfo;tubus;ALL;/;../shared-relwithdebinfo;tubus;ALL;/"
           cmake --build --preset static-relwithdebinfo --target all
           ctest --preset static-relwithdebinfo
 
       - name: Build shared
         run: |
-          cmake --preset shared-relwithdebinfo -DCPACK_PACKAGE_RELEASE=${{ env.PACKAGE_RELEASE }}
+          cmake --preset shared-relwithdebinfo \
+            -DCPACK_PACKAGE_RELEASE=${{ env.PACKAGE_RELEASE }} \
+            -DCPACK_RPM_PACKAGE_VENDOR="${{ env.MAINTAINER }}" \
+            -DCPACK_RPM_PACKAGE_URL="${{ env.HOMEPAGE }}"
           cmake --build --preset shared-relwithdebinfo --target all
           ctest --preset shared-relwithdebinfo
 
       - name: Build packages
         run: |
-          cpack --preset rpm-package-lib \
-            -DCPACK_RPM_PACKAGE_VENDOR="${{ env.MAINTAINER }}" \
-            -DCPACK_RPM_PACKAGE_URL="${{ env.HOMEPAGE }}"
-          cpack --preset rpm-package-dev \
-            -DCPACK_RPM_PACKAGE_VENDOR="${{ env.MAINTAINER }}" \
-            -DCPACK_RPM_PACKAGE_URL="${{ env.HOMEPAGE }}" \
-            -DCPACK_INSTALL_CMAKE_PROJECTS="${{ github.workspace }}/out/${{ env.TARGET_OS }}/${{ env.TARGET_ARCH }}/build/static-relwithdebinfo;tubus;ALL;/;${{ github.workspace }}/out/${{ env.TARGET_OS }}/${{ env.TARGET_ARCH }}/build/shared-relwithdebinfo;tubus;ALL;/"
+          cpack --preset rpm-package-lib
+          cpack --preset rpm-package-dev
 
       - name: Upload packages
         uses: actions/upload-artifact@v4
@@ -133,7 +137,8 @@ jobs:
           cmake --preset static-relwithdebinfo `
             -DCPACK_PACKAGE_RELEASE=${{ env.PACKAGE_RELEASE }} `
             -DVCPKG_TARGET_TRIPLET=${{ env.TARGET_ARCH }}-windows-static `
-            -DCMAKE_TOOLCHAIN_FILE="${{ env.TOOLCHAIN_FILE }}"
+            -DCMAKE_TOOLCHAIN_FILE="${{ env.TOOLCHAIN_FILE }}" `
+            -DCPACK_INSTALL_CMAKE_PROJECTS="../static-relwithdebinfo;tubus;ALL;/;../shared-relwithdebinfo;tubus;ALL;/"
           cmake --build --preset static-relwithdebinfo --target ALL_BUILD
           ctest --preset static-relwithdebinfo
 
@@ -150,8 +155,7 @@ jobs:
       - name: Build archive
         shell: pwsh
         run: |
-          cpack --preset archive `
-            -DCPACK_INSTALL_CMAKE_PROJECTS="${{ github.workspace }}/out/${{ env.TARGET_OS }}/${{ env.TARGET_ARCH }}/build/static-relwithdebinfo;tubus;ALL;/;${{ github.workspace }}/out/${{ env.TARGET_OS }}/${{ env.TARGET_ARCH }}/build/shared-relwithdebinfo;tubus;ALL;/"
+          cpack --preset archive
 
       - name: Upload archive
         uses: actions/upload-artifact@v4
@@ -194,7 +198,8 @@ jobs:
           cmake --preset static-relwithdebinfo \
             -DCPACK_PACKAGE_RELEASE=${{ env.PACKAGE_RELEASE }} \
             -DVCPKG_TARGET_TRIPLET=${{ env.TARGET_ARCH }}-osx \
-            -DCMAKE_TOOLCHAIN_FILE="$CMAKE_TOOLCHAIN_FILE"
+            -DCMAKE_TOOLCHAIN_FILE="$CMAKE_TOOLCHAIN_FILE" \
+            -DCPACK_INSTALL_CMAKE_PROJECTS="../static-relwithdebinfo;tubus;ALL;/;../shared-relwithdebinfo;tubus;ALL;/"
           cmake --build --preset static-relwithdebinfo --target all
           ctest --preset static-relwithdebinfo
 
@@ -209,8 +214,7 @@ jobs:
 
       - name: Build archive
         run: |
-          cpack --preset archive \
-            -DCPACK_INSTALL_CMAKE_PROJECTS="${{ github.workspace }}/out/${{ env.TARGET_OS }}/${{ env.TARGET_ARCH }}/build/static-relwithdebinfo;tubus;ALL;/;${{ github.workspace }}/out/${{ env.TARGET_OS }}/${{ env.TARGET_ARCH }}/build/shared-relwithdebinfo;tubus;ALL;/"
+          cpack --preset archive
 
       - name: Upload archive
         uses: actions/upload-artifact@v4
