@@ -21,25 +21,25 @@ jobs:
         uses: dawidd6/action-download-artifact@v2
         with:
           workflow: artifacts.yml
-          branch: ${{ github.ref }}
+          branch: master
           name: debian-packages
           path: dist/debian
       - uses: dawidd6/action-download-artifact@v2
         with:
           workflow: artifacts.yml
-          branch: ${{ github.ref }}
+          branch: master
           name: fedora-packages
           path: dist/fedora
       - uses: dawidd6/action-download-artifact@v2
         with:
           workflow: artifacts.yml
-          branch: ${{ github.ref }}
+          branch: master
           name: windows-archive
           path: dist/windows
       - uses: dawidd6/action-download-artifact@v2
         with:
           workflow: artifacts.yml
-          branch: ${{ github.ref }}
+          branch: master
           name: macos-archive
           path: dist/macos
 
@@ -47,10 +47,10 @@ jobs:
         uses: ncipollo/release-action@v1
         with:
           tag: ${{ steps.gittag.outputs.TAG }}
-          name: Release ${{ steps.gittag.outputs.TAG }}
+          name: ${{ steps.gittag.outputs.TAG }}
           draft: true
           prerelease: ${{ contains(steps.gittag.outputs.TAG, 'rc') || contains(steps.gittag.outputs.TAG, 'beta') }}
           body: |
-            Packages for ${{ steps.gittag.outputs.TAG }}.
+            Packages for ${{ steps.gittag.outputs.TAG }}
           artifacts: "dist/**/*"
           allowUpdates: true

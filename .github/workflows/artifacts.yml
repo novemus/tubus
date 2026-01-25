@@ -114,7 +114,7 @@ jobs:
     env:
       TARGET_OS: windows
       TARGET_ARCH: x64
-      TOOLCHAIN_FILE: "C:\\vcpkg\\scripts\\buildsystems\\vcpkg.cmake"
+      VCPKG_TOOLCHAIN_FILE: "C:\\vcpkg\\scripts\\buildsystems\\vcpkg.cmake"
 
     steps:
       - uses: actions/checkout@v4
@@ -135,7 +135,7 @@ jobs:
           cmake --preset static-relwithdebinfo `
             -DCPACK_PACKAGE_RELEASE=${{ env.PACKAGE_RELEASE }} `
             -DVCPKG_TARGET_TRIPLET=${{ env.TARGET_ARCH }}-windows-static `
-            -DCMAKE_TOOLCHAIN_FILE="${{ env.TOOLCHAIN_FILE }}"
+            -DCMAKE_TOOLCHAIN_FILE="${{ env.VCPKG_TOOLCHAIN_FILE }}"
           cmake --build --preset static-relwithdebinfo --target ALL_BUILD
           ctest --preset static-relwithdebinfo
 
@@ -145,7 +145,7 @@ jobs:
           cmake --preset shared-relwithdebinfo `
             -DCPACK_PACKAGE_RELEASE=${{ env.PACKAGE_RELEASE }} `
             -DVCPKG_TARGET_TRIPLET=${{ env.TARGET_ARCH }}-windows `
-            -DCMAKE_TOOLCHAIN_FILE="${{ env.TOOLCHAIN_FILE }}"
+            -DCMAKE_TOOLCHAIN_FILE="${{ env.VCPKG_TOOLCHAIN_FILE }}"
           cmake --build --preset shared-relwithdebinfo --target ALL_BUILD
           ctest --preset shared-relwithdebinfo
 
@@ -169,7 +169,7 @@ jobs:
       TARGET_OS: darwin
       TARGET_ARCH: arm64
       VCPKG_ROOT: ${{ github.workspace }}/vcpkg
-      CMAKE_TOOLCHAIN_FILE: ${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake
+      VCPKG_TOOLCHAIN_FILE: ${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake
       VCPKG_FORCE_SYSTEM_BINARIES: 1
 
     steps:
@@ -195,7 +195,7 @@ jobs:
           cmake --preset static-relwithdebinfo \
             -DCPACK_PACKAGE_RELEASE=${{ env.PACKAGE_RELEASE }} \
             -DVCPKG_TARGET_TRIPLET=${{ env.TARGET_ARCH }}-osx \
-            -DCMAKE_TOOLCHAIN_FILE="$CMAKE_TOOLCHAIN_FILE"
+            -DCMAKE_TOOLCHAIN_FILE="${{ env.VCPKG_TOOLCHAIN_FILE }}"
           cmake --build --preset static-relwithdebinfo --target all
           ctest --preset static-relwithdebinfo
 
@@ -204,7 +204,7 @@ jobs:
           cmake --preset shared-relwithdebinfo \
             -DCPACK_PACKAGE_RELEASE=${{ env.PACKAGE_RELEASE }} \
             -DVCPKG_TARGET_TRIPLET=${{ env.TARGET_ARCH }}-osx-dynamic \
-            -DCMAKE_TOOLCHAIN_FILE="$CMAKE_TOOLCHAIN_FILE"
+            -DCMAKE_TOOLCHAIN_FILE="${{ env.VCPKG_TOOLCHAIN_FILE }}"
           cmake --build --preset shared-relwithdebinfo --target all
           ctest --preset shared-relwithdebinfo
 
