@@ -230,7 +230,8 @@
                 "CPACK_DEBIAN_PACKAGE_DEPENDS": "libboost-dev (>= 1.74) | libboost1.81-dev, libtubus (>= 1.2.4)",
                 "CPACK_PACKAGE_DESCRIPTION_SUMMARY": "C++ development library for UDP streaming",
                 "CPACK_PACKAGE_DESCRIPTION": "This library provides a C++ implementation of a self obfuscated streaming\ntransport protocol based on UDP.",
-                "CPACK_COMPONENTS_ALL": "archive_files;header_files;cmake_files;dev_deb_files;dev_doc_files"
+                "CPACK_COMPONENTS_ALL": "archive_files;header_files;cmake_files;dev_deb_files;dev_doc_files",
+                "CPACK_INSTALL_CMAKE_PROJECTS": "../static-relwithdebinfo;tubus;ALL;/;../shared-relwithdebinfo;tubus;ALL;/"
             },
             "packageName": "libtubus-dev",
             "packageDirectory": ".."
@@ -282,7 +283,8 @@
                 "CPACK_RPM_SPEC_MORE_DEFINE": "%define debug_package %{nil}\n%define __strip /bin/true\n%define __objcopy /bin/true",
                 "CPACK_RPM_PACKAGE_DESCRIPTION": "This library provides a C++ implementation of a self obfuscated streaming\ntransport protocol based on UDP.",
                 "CPACK_RPM_PACKAGE_REQUIRES": "boost-devel, openssl-devel, libtubus = %{version}-%{release}",
-                "CPACK_COMPONENTS_ALL": "archive_files;header_files;cmake_files;dev_doc_files"
+                "CPACK_COMPONENTS_ALL": "archive_files;header_files;cmake_files;dev_doc_files",
+                "CPACK_INSTALL_CMAKE_PROJECTS": "../static-relwithdebinfo;tubus;ALL;/;../shared-relwithdebinfo;tubus;ALL;/"
             },
             "packageName": "libtubus-devel",
             "packageDirectory": ".."
@@ -301,7 +303,8 @@
             "variables": {
                 "CPACK_COMPONENTS_ALL": "runtime_files;library_files;archive_files;pdb_files;header_files;cmake_files;dev_doc_files",
                 "CPACK_ARCHIVE_COMPONENT_INSTALL": "ON",
-                "CPACK_COMPONENTS_ALL_IN_ONE_PACKAGE": "ON"
+                "CPACK_COMPONENTS_ALL_IN_ONE_PACKAGE": "ON",
+                "CPACK_INSTALL_CMAKE_PROJECTS": "../static-relwithdebinfo;tubus;ALL;/;../shared-relwithdebinfo;tubus;ALL;/"
             },
             "packageName": "tubus",
             "packageDirectory": ".."

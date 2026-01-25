@@ -34,8 +34,7 @@ jobs:
           cmake --preset static-relwithdebinfo \
             -DCPACK_PACKAGE_RELEASE=${{ env.PACKAGE_RELEASE }} \
             -DCPACK_DEBIAN_PACKAGE_MAINTAINER="${{ env.MAINTAINER }}" \
-            -DCPACK_DEBIAN_PACKAGE_HOMEPAGE="${{ env.HOMEPAGE }}" \
-            -DCPACK_INSTALL_CMAKE_PROJECTS="../static-relwithdebinfo;tubus;ALL;/;../shared-relwithdebinfo;tubus;ALL;/"
+            -DCPACK_DEBIAN_PACKAGE_HOMEPAGE="${{ env.HOMEPAGE }}"
           cmake --build --preset static-relwithdebinfo --target all
           ctest --preset static-relwithdebinfo
 
@@ -83,8 +82,7 @@ jobs:
           cmake --preset static-relwithdebinfo \
             -DCPACK_PACKAGE_RELEASE=${{ env.PACKAGE_RELEASE }} \
             -DCPACK_RPM_PACKAGE_VENDOR="${{ env.MAINTAINER }}" \
-            -DCPACK_RPM_PACKAGE_URL="${{ env.HOMEPAGE }}" \
-            -DCPACK_INSTALL_CMAKE_PROJECTS="../static-relwithdebinfo;tubus;ALL;/;../shared-relwithdebinfo;tubus;ALL;/"
+            -DCPACK_RPM_PACKAGE_URL="${{ env.HOMEPAGE }}"
           cmake --build --preset static-relwithdebinfo --target all
           ctest --preset static-relwithdebinfo
 
@@ -137,8 +135,7 @@ jobs:
           cmake --preset static-relwithdebinfo `
             -DCPACK_PACKAGE_RELEASE=${{ env.PACKAGE_RELEASE }} `
             -DVCPKG_TARGET_TRIPLET=${{ env.TARGET_ARCH }}-windows-static `
-            -DCMAKE_TOOLCHAIN_FILE="${{ env.TOOLCHAIN_FILE }}" `
-            -DCPACK_INSTALL_CMAKE_PROJECTS="../static-relwithdebinfo;tubus;ALL;/;../shared-relwithdebinfo;tubus;ALL;/"
+            -DCMAKE_TOOLCHAIN_FILE="${{ env.TOOLCHAIN_FILE }}"
           cmake --build --preset static-relwithdebinfo --target ALL_BUILD
           ctest --preset static-relwithdebinfo
 
@@ -198,8 +195,7 @@ jobs:
           cmake --preset static-relwithdebinfo \
             -DCPACK_PACKAGE_RELEASE=${{ env.PACKAGE_RELEASE }} \
             -DVCPKG_TARGET_TRIPLET=${{ env.TARGET_ARCH }}-osx \
-            -DCMAKE_TOOLCHAIN_FILE="$CMAKE_TOOLCHAIN_FILE" \
-            -DCPACK_INSTALL_CMAKE_PROJECTS="../static-relwithdebinfo;tubus;ALL;/;../shared-relwithdebinfo;tubus;ALL;/"
+            -DCMAKE_TOOLCHAIN_FILE="$CMAKE_TOOLCHAIN_FILE"
           cmake --build --preset static-relwithdebinfo --target all
           ctest --preset static-relwithdebinfo
 
