@@ -1,0 +1,7 @@
+[requires]
+openssl/3.6.1
+boost/[>=1.80 <=1.88]
+
+[generators]
+CMakeDeps
+CMakeToolchain
