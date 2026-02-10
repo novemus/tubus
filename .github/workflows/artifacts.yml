@@ -124,9 +124,9 @@ jobs:
         id: cache-vcpkg
         with:
           path: out\\${{ env.TARGET_OS }}\\${{ env.TARGET_ARCH }}\\build\\*\\vcpkg_installed
-          key: ${{ runner.os }}-vcpkg-${{ env.TARGET_ARCH }}-${{ hashFiles('**/vcpkg.json', '**/vcpkg-configuration.json') }}
+          key: ${{ runner.os }}-vcpkg-${{ env.TARGET_ARCH }}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}
           restore-keys: |
-            ${{ runner.os }}-vcpkg-${{ env.TARGET_ARCH }}-${{ hashFiles('**/vcpkg.json', '**/vcpkg-configuration.json') }}
+            ${{ runner.os }}-vcpkg-${{ env.TARGET_ARCH }}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}
             ${{ runner.os }}-vcpkg-${{ env.TARGET_ARCH }}-
 
       - name: Build static
@@ -185,9 +185,9 @@ jobs:
         id: cache-vcpkg
         with:
           path: out/${{ env.TARGET_OS }}/${{ env.TARGET_ARCH }}/build/*/vcpkg_installed
-          key: ${{ runner.os }}-vcpkg-${{ env.TARGET_ARCH }}-${{ hashFiles('**/vcpkg.json', '**/vcpkg-configuration.json') }}
+          key: ${{ runner.os }}-vcpkg-${{ env.TARGET_ARCH }}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}
           restore-keys: |
-            ${{ runner.os }}-vcpkg-${{ env.TARGET_ARCH }}-${{ hashFiles('**/vcpkg.json', '**/vcpkg-configuration.json') }}
+            ${{ runner.os }}-vcpkg-${{ env.TARGET_ARCH }}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}
             ${{ runner.os }}-vcpkg-${{ env.TARGET_ARCH }}-
 
       - name: Build static
