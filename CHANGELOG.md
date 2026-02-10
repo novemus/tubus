@@ -1,5 +1,10 @@
 # Change Log
 
+## 1.2.5 (Feb 10, 2026)
+
+- Increased data transfer rate.
+- Build improvements.
+
 ## 1.2.4 (Jan 11, 2026)
 
 - Added RelWithDebInfo presets.

@@ -7,7 +7,7 @@ on:
     branches: [ master ]
 
 env:
-  PACKAGE_RELEASE: ${{ github.run_number }}
+  PACKAGE_RELEASE: ${{ vars.PACKAGE_RELEASE || 1 }}
   MAINTAINER: "${{ vars.MAINTAINER }}"
   HOMEPAGE: "${{ github.server_url }}/${{ github.repository }}"
 
