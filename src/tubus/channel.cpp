@@ -98,7 +98,7 @@ class transport : public channel, public std::enable_shared_from_this<transport>
 
     inline static size_t snippet_flight() noexcept(true)
     {
-        static size_t s_flight(getenv("TUBUS_SNIPPET_FLIGHT", 48ul));
+        static size_t s_flight(getenv("TUBUS_SNIPPET_FLIGHT", 1024ul));
         return s_flight;
     }
 
