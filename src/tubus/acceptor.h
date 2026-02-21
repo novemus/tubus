@@ -10,17 +10,16 @@
 
 #pragma once
 
-#include <tubus/channel.h>
 #include <tubus/socket.h>
 #include <future>
 
-namespace tubus {
+namespace tubus { namespace udp {
 
 typedef boost::asio::ip::udp::endpoint endpoint;
 
 class acceptor
 {
-    boost::asio::io_context& m_asio;
+    boost::asio::io_context& m_io;
     boost::asio::ip::udp::socket m_socket;
     boost::asio::ip::udp::endpoint m_local;
 
@@ -32,7 +31,7 @@ public:
     typedef boost::asio::io_context::executor_type executor_type;
 
     acceptor(boost::asio::io_context& io) noexcept(true) 
-        : m_asio(io)
+        : m_io(io)
         , m_socket(io)
     {
     }
@@ -45,7 +44,7 @@ public:
 
     executor_type get_executor() const noexcept(true)
     {
-        return m_asio.get_executor();
+        return m_io.get_executor();
     }
 
     void open(const endpoint& local) noexcept(false)
@@ -244,4 +243,4 @@ public:
     }
 };
 
-}
+}}

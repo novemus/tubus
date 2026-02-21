@@ -9,11 +9,11 @@
  */
 
 #include "common.h"
+#include <tubus/utils.h>
 #include <tubus/buffer.h>
 #include <tubus/channel.h>
 #include <future>
 #include <functional>
-#include <boost/asio/ip/tcp.hpp>
 #include <boost/test/unit_test.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
 
@@ -49,16 +49,16 @@ return std::async([=, obj = object]() \
 
 executor g_reactor;
 
-class tubus_wrapper
+template<class channel> class tubus_wrapper
 {
-    boost::asio::ip::udp::endpoint m_bind;
-    boost::asio::ip::udp::endpoint m_peer;
+    typename channel::endpoint m_bind;
+    typename channel::endpoint m_peer;
     uint64_t m_secret;
-    std::shared_ptr<tubus::channel> m_channel;
+    std::shared_ptr<channel> m_channel;
 
 public:
 
-    tubus_wrapper(const boost::asio::ip::udp::endpoint& b, const boost::asio::ip::udp::endpoint& p, uint64_t s)
+    tubus_wrapper(const typename channel::endpoint& b, const typename channel::endpoint& p, uint64_t s)
         : m_bind(b)
         , m_peer(p)
         , m_secret(s)
@@ -67,12 +67,13 @@ public:
 
     ~tubus_wrapper()
     {
-        m_channel->close();
+        if (m_channel)
+            m_channel->close();
     }
 
     void open()
     {
-        m_channel = tubus::create_channel(g_reactor.io, m_secret);
+        m_channel = channel::create(g_reactor.io, m_secret);
         m_channel->open(m_bind);
     }
 
@@ -117,7 +118,7 @@ public:
     }
 };
 
-class mediator : public std::enable_shared_from_this<mediator>
+class udp_router : public std::enable_shared_from_this<udp_router>
 {
     boost::asio::ip::udp::endpoint m_le;
     boost::asio::ip::udp::endpoint m_re;
@@ -127,7 +128,7 @@ class mediator : public std::enable_shared_from_this<mediator>
 
     void receive()
     {
-        std::weak_ptr<mediator> weak = shared_from_this();
+        std::weak_ptr<udp_router> weak = shared_from_this();
         m_bs.async_receive_from(m_rb, m_ep, [weak](const boost::system::error_code& e, size_t s)
         {
             auto ptr = weak.lock();
@@ -163,7 +164,7 @@ class mediator : public std::enable_shared_from_this<mediator>
 
 public:
 
-    mediator(const boost::asio::ip::udp::endpoint& b, const boost::asio::ip::udp::endpoint& l, const boost::asio::ip::udp::endpoint& r)
+    udp_router(const boost::asio::ip::udp::endpoint& b, const boost::asio::ip::udp::endpoint& l, const boost::asio::ip::udp::endpoint& r)
         : m_le(l)
         , m_re(r)
         , m_bs(g_reactor.io, b.protocol())
@@ -179,17 +180,17 @@ public:
     }
 };
 
-BOOST_AUTO_TEST_SUITE(tubus_channel);
+BOOST_AUTO_TEST_SUITE(udp_channel);
 
 BOOST_AUTO_TEST_CASE(core)
 {
-    const uint64_t default_receive_buffer = 5ull * 1024 * 1024;
+    const uint64_t default_receive_buffer = tubus::udp::qos::receive_buffer_size();
 
     boost::asio::ip::udp::endpoint le(boost::asio::ip::make_address("127.0.0.1"), 3001);
     boost::asio::ip::udp::endpoint re(boost::asio::ip::make_address("127.0.0.1"), 3002);
 
-    tubus_wrapper left(le, re, 1234567890);
-    tubus_wrapper right(re, le, 1234567890);
+    tubus_wrapper<tubus::udp_channel> left(le, re, 1234567890);
+    tubus_wrapper<tubus::udp_channel> right(re, le, 1234567890);
 
     BOOST_REQUIRE_NO_THROW(left.open());
     BOOST_REQUIRE_NO_THROW(right.open());
@@ -247,10 +248,10 @@ BOOST_AUTO_TEST_CASE(connectivity)
     boost::asio::ip::udp::endpoint le(boost::asio::ip::make_address("127.0.0.1"), 3001);
     boost::asio::ip::udp::endpoint re(boost::asio::ip::make_address("127.0.0.1"), 3002);
 
-    tubus_wrapper left(le, re, 1234567890);
+    tubus_wrapper<tubus::udp_channel> left(le, re, 1234567890);
     BOOST_REQUIRE_NO_THROW(left.open());
 
-    tubus_wrapper right(re, le, 1234567890);
+    tubus_wrapper<tubus::udp_channel> right(re, le, 1234567890);
     BOOST_REQUIRE_NO_THROW(right.open());
 
     auto la = left.async_accept();
@@ -286,11 +287,11 @@ BOOST_AUTO_TEST_CASE(integrity)
     boost::asio::ip::udp::endpoint le(boost::asio::ip::make_address("127.0.0.1"), 3001);
     boost::asio::ip::udp::endpoint re(boost::asio::ip::make_address("127.0.0.1"), 3002);
 
-    auto proxy = std::make_shared<mediator>(pe, le, re);
-    proxy->start();
+    auto router = std::make_shared<udp_router>(pe, le, re);
+    router->start();
 
-    tubus_wrapper left(le, pe, 0);
-    tubus_wrapper right(re, pe, 0);
+    tubus_wrapper<tubus::udp_channel> left(le, pe, 1234567890);
+    tubus_wrapper<tubus::udp_channel> right(re, pe, 1234567890);
 
     BOOST_REQUIRE_NO_THROW(left.open());
     BOOST_REQUIRE_NO_THROW(right.open());
@@ -337,8 +338,8 @@ BOOST_AUTO_TEST_CASE(fall)
     boost::asio::ip::udp::endpoint le(boost::asio::ip::make_address("127.0.0.1"), 3001);
     boost::asio::ip::udp::endpoint re(boost::asio::ip::make_address("127.0.0.1"), 3002);
 
-    tubus_wrapper left(le, re, 0);
-    tubus_wrapper right(re, le, 0);
+    tubus_wrapper<tubus::udp_channel> left(le, re, 0);
+    tubus_wrapper<tubus::udp_channel> right(re, le, 0);
 
     BOOST_REQUIRE_NO_THROW(left.open());
     BOOST_REQUIRE_NO_THROW(right.open());
@@ -368,8 +369,262 @@ BOOST_AUTO_TEST_CASE(speed)
     boost::asio::ip::udp::endpoint re(boost::asio::ip::make_address("127.0.0.1"), 3002);
 
     boost::asio::io_context io;
-    auto left = tubus::create_channel(g_reactor.io, 0);
-    auto right = tubus::create_channel(g_reactor.io, 0);
+    auto left = tubus::udp_channel::create(g_reactor.io, 0);
+    auto right = tubus::udp_channel::create(g_reactor.io, 0);
+
+    const size_t MB = 1024 * 1024;
+    const size_t TRAFFIC = 1024 * MB;
+
+    tubus::mutable_buffer wb(MB);
+    tubus::mutable_buffer rb(MB);
+
+    size_t written = 0;
+
+    std::promise<void> wp;
+    std::future<void> wf = wp.get_future();
+
+    tubus::io_callback on_write = [&](const boost::system::error_code& err, size_t size)
+    {
+        if (err)
+        {
+            wp.set_exception(std::make_exception_ptr(boost::system::system_error(err)));
+            return;
+        }
+
+        written += size;
+
+        if (written < TRAFFIC)
+        {
+            auto rest = TRAFFIC - written;
+            left->write(wb.size() > rest ? wb.slice(0, rest) : wb, on_write);
+        }
+        else
+        {
+            wp.set_value();
+        }
+    };
+
+    tubus::callback on_connect = [&](const boost::system::error_code& err)
+    {
+        if (err)
+        {
+            wp.set_exception(std::make_exception_ptr(boost::system::system_error(err)));
+            return;
+        }
+
+        left->write(wb, on_write);
+    };
+
+    size_t read = 0;
+
+    std::promise<void> rp;
+    std::future<void> rf = rp.get_future();
+
+    tubus::io_callback on_read = [&](const boost::system::error_code& err, size_t size)
+    {
+        if (err)
+        {
+            rp.set_exception(std::make_exception_ptr(boost::system::system_error(err)));
+            return;
+        }
+
+        read += size;
+
+        if (read < TRAFFIC)
+        {
+            auto rest = TRAFFIC - read;
+            right->read(rb.size() > rest ? rb.slice(0, rest) : rb, on_read);
+        }
+        else
+        {
+            rp.set_value();
+        }
+    };
+
+    tubus::callback on_accept = [&](const boost::system::error_code& err)
+    {
+        if (err)
+        {
+            rp.set_exception(std::make_exception_ptr(boost::system::system_error(err)));
+            return;
+        }
+
+        right->read(rb, on_read);
+    };
+
+    right->open(re);
+    left->open(le);
+
+    right->accept(le, on_accept);
+    left->connect(re, on_connect);
+
+    auto begin = boost::posix_time::microsec_clock::local_time();
+
+    BOOST_REQUIRE_NO_THROW(wf.get());
+    BOOST_REQUIRE_NO_THROW(rf.get());
+
+    auto time = boost::posix_time::microsec_clock::local_time() - begin;
+
+    BOOST_TEST_MESSAGE(
+        "traffic: " << float(TRAFFIC) / MB  << " MB\ntime: " << time  << "\nspeed: " << float(TRAFFIC) / time.total_milliseconds() * 1000 / MB * 8 << " Mb/s"
+        );
+
+    right->close();
+    left->close();
+}
+
+BOOST_AUTO_TEST_SUITE_END();
+
+BOOST_AUTO_TEST_SUITE(tcp_channel);
+
+BOOST_AUTO_TEST_CASE(core)
+{
+    const uint64_t default_receive_buffer = tubus::tcp::qos::receive_buffer_size();
+
+    boost::asio::ip::tcp::endpoint le(boost::asio::ip::make_address("127.0.0.1"), 3001);
+    boost::asio::ip::tcp::endpoint re(boost::asio::ip::make_address("127.0.0.1"), 3002);
+
+    tubus_wrapper<tubus::tcp_channel> left(le, re, 1234567890);
+    tubus_wrapper<tubus::tcp_channel> right(re, le, 1234567890);
+
+    BOOST_REQUIRE_NO_THROW(left.open());
+    BOOST_REQUIRE_NO_THROW(right.open());
+
+    uint8_t data[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
+
+    tubus::mutable_buffer lb(sizeof(data));
+    tubus::mutable_buffer rb(sizeof(data));
+
+    std::memcpy(lb.data(), data, lb.size());
+    std::memcpy(rb.data(), data, rb.size());
+
+    auto la = left.async_accept();
+    auto rc = right.async_connect();
+
+    BOOST_REQUIRE_NO_THROW(la.get());
+    BOOST_REQUIRE_NO_THROW(rc.get());
+
+    BOOST_CHECK_EQUAL(left.readable(), 0);
+    BOOST_CHECK_EQUAL(right.readable(), 0);
+
+    BOOST_CHECK_EQUAL(left.writable(), default_receive_buffer);
+    BOOST_CHECK_EQUAL(right.writable(), default_receive_buffer);
+
+    for(size_t i = 0; i < sizeof(data); ++i)
+    {
+        BOOST_REQUIRE_NO_THROW(left.async_write(lb.slice(i, 1)).get());
+        BOOST_REQUIRE_NO_THROW(right.async_write(rb.slice(i, 1)).get());
+    }
+
+    BOOST_CHECK_EQUAL(left.readable(), sizeof(data));
+    BOOST_CHECK_EQUAL(right.readable(), sizeof(data));
+
+    std::memset(lb.data(), 0, lb.size());
+    std::memset(rb.data(), 0, rb.size());
+
+    BOOST_REQUIRE_NO_THROW(left.async_read(lb).get());
+    BOOST_CHECK_EQUAL(std::memcmp(lb.data(), data, lb.size()), 0);
+
+    BOOST_REQUIRE_NO_THROW(right.async_read(rb).get());
+    BOOST_CHECK_EQUAL(std::memcmp(rb.data(), data, rb.size()), 0);
+
+    auto ls = left.async_shutdown();
+    auto rs = right.async_shutdown();
+
+    BOOST_REQUIRE_NO_THROW(ls.get());
+    BOOST_REQUIRE_NO_THROW(rs.get());
+}
+
+BOOST_AUTO_TEST_CASE(fall)
+{
+    boost::asio::ip::tcp::endpoint le(boost::asio::ip::make_address("127.0.0.1"), 3011);
+    boost::asio::ip::tcp::endpoint re(boost::asio::ip::make_address("127.0.0.1"), 3012);
+
+    tubus_wrapper<tubus::tcp_channel> left(le, re, 0);
+    BOOST_REQUIRE_NO_THROW(left.open());
+
+    tubus_wrapper<tubus::tcp_channel> right(re, le, 0);
+    BOOST_REQUIRE_NO_THROW(right.open());
+
+    auto rc = right.async_connect();
+    BOOST_CHECK_EQUAL((int)rc.wait_for(std::chrono::seconds(1)), (int)std::future_status::timeout);
+    BOOST_REQUIRE_THROW(right.async_shutdown().get(), boost::system::system_error);
+    BOOST_REQUIRE_NO_THROW(right.close());
+
+    auto la = left.async_accept();
+    BOOST_CHECK_EQUAL((int)la.wait_for(std::chrono::seconds(1)), (int)std::future_status::timeout);
+    BOOST_REQUIRE_THROW(left.async_shutdown().get(), boost::system::system_error);
+    BOOST_REQUIRE_NO_THROW(left.close());
+
+    BOOST_REQUIRE_THROW(left.async_shutdown().get(), boost::system::system_error);
+    BOOST_REQUIRE_THROW(right.async_shutdown().get(), boost::system::system_error);
+
+    BOOST_REQUIRE_THROW(left.async_read(tubus::mutable_buffer(1)).get(), boost::system::system_error);
+    BOOST_REQUIRE_THROW(right.async_write(tubus::mutable_buffer(1)).get(), boost::system::system_error);
+}
+
+BOOST_AUTO_TEST_CASE(integrity)
+{
+    boost::asio::ip::tcp::endpoint le(boost::asio::ip::make_address("127.0.0.1"), 3001);
+    boost::asio::ip::tcp::endpoint re(boost::asio::ip::make_address("127.0.0.1"), 3002);
+
+    tubus_wrapper<tubus::tcp_channel> left(le, re, 1234567890UL);
+    tubus_wrapper<tubus::tcp_channel> right(re, le, 1234567890UL);
+
+    BOOST_REQUIRE_NO_THROW(left.open());
+    BOOST_REQUIRE_NO_THROW(right.open());
+
+    auto la = left.async_accept();
+    auto rc = right.async_connect();
+
+    BOOST_REQUIRE_NO_THROW(la.get());
+    BOOST_REQUIRE_NO_THROW(rc.get());
+
+    stream_source source;
+    stream_sink sink;
+    tubus::mutable_buffer buffer(stream_source::chunk_size);
+
+    auto wf = left.async_write(source.read_next());
+    auto rf = right.async_read(buffer);
+
+    BOOST_REQUIRE_NO_THROW(wf.get());
+    BOOST_REQUIRE_NO_THROW(rf.get());
+    BOOST_REQUIRE_NO_THROW(sink.write_next(buffer));
+
+    wf = left.async_write(source.read_next());
+    rf = right.async_read(buffer);
+    
+    BOOST_REQUIRE_NO_THROW(wf.get());
+    BOOST_REQUIRE_NO_THROW(rf.get());
+    BOOST_REQUIRE_NO_THROW(sink.write_next(buffer));
+
+    wf = left.async_write(source.read_next());
+    rf = right.async_read(buffer);
+    
+    BOOST_REQUIRE_NO_THROW(wf.get());
+    BOOST_REQUIRE_NO_THROW(rf.get());
+    BOOST_REQUIRE_NO_THROW(sink.write_next(buffer));
+
+    BOOST_CHECK_EQUAL(source.read(), sink.written());
+
+    auto rr = right.async_read(buffer.slice(0, 1));
+    BOOST_CHECK_EQUAL((int)rr.wait_for(std::chrono::seconds(1)), (int)std::future_status::timeout);
+
+    auto ls = left.async_shutdown();
+    auto rs = right.async_shutdown();
+
+    BOOST_REQUIRE_NO_THROW(ls.get());
+    BOOST_REQUIRE_NO_THROW(rs.get());
+}
+
+BOOST_AUTO_TEST_CASE(speed)
+{
+    boost::asio::ip::tcp::endpoint le(boost::asio::ip::make_address("127.0.0.1"), 3021);
+    boost::asio::ip::tcp::endpoint re(boost::asio::ip::make_address("127.0.0.1"), 3022);
+
+    boost::asio::io_context io;
+    auto left = tubus::tcp_channel::create(g_reactor.io, 0);
+    auto right = tubus::tcp_channel::create(g_reactor.io, 0);
 
     const size_t MB = 1024 * 1024;
     const size_t TRAFFIC = 1024 * MB;

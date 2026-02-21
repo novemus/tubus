@@ -13,10 +13,12 @@
 #include <tubus/channel.h>
 #include <future>
 
-namespace tubus { namespace detail {
+namespace tubus {
 
-template<class io_method, class limit_method, class data_buffer, class handler>
-void post_io_method(channel_ptr channel, io_method method, limit_method limiter, const data_buffer& buffer, boost::asio::io_context& io, handler&& callback, size_t result = 0) noexcept(true)
+namespace detail {
+
+template<class tubus_channel, class io_method, class limit_method, class data_buffer, class handler>
+void post_io_method(std::shared_ptr<tubus_channel> channel, io_method method, limit_method limiter, const data_buffer& buffer, boost::asio::io_context& io, handler&& callback, size_t result = 0) noexcept(true)
 {
     if (!channel)
     {
@@ -53,8 +55,8 @@ void post_io_method(channel_ptr channel, io_method method, limit_method limiter,
     }
 }
 
-template<class io_method, class limit_method, class buffer_iterator, class handler>
-void post_io_method(channel_ptr channel, io_method method, limit_method limiter, buffer_iterator begin, buffer_iterator end, boost::asio::io_context& io, handler&& callback, size_t result = 0) noexcept(true)
+template<class tubus_channel, class io_method, class limit_method, class buffer_iterator, class handler>
+void post_io_method(std::shared_ptr<tubus_channel> channel, io_method method, limit_method limiter, buffer_iterator begin, buffer_iterator end, boost::asio::io_context& io, handler&& callback, size_t result = 0) noexcept(true)
 {
     if (!channel)
     {
@@ -80,8 +82,8 @@ void post_io_method(channel_ptr channel, io_method method, limit_method limiter,
     }, result);
 }
 
-template<class io_method, class limit_method, class buffer_iterator>
-size_t exec_io_method(channel_ptr channel, io_method method, limit_method limiter, buffer_iterator begin, buffer_iterator end, boost::asio::io_context& io, boost::system::error_code& ec) noexcept(true)
+template<class tubus_channel, class io_method, class limit_method, class buffer_iterator>
+size_t exec_io_method(std::shared_ptr<tubus_channel> channel, io_method method, limit_method limiter, buffer_iterator begin, buffer_iterator end, boost::asio::io_context& io, boost::system::error_code& ec) noexcept(true)
 {
     if (!channel)
     {
@@ -103,12 +105,10 @@ size_t exec_io_method(channel_ptr channel, io_method method, limit_method limite
 
 }
 
-typedef boost::asio::ip::udp::endpoint endpoint;
-
-class socket
+template<class channel> class socket
 {
-    boost::asio::io_context& m_asio;
-    channel_ptr m_channel;
+    boost::asio::io_context& m_io;
+    std::shared_ptr<channel> m_channel;
 
     socket(const socket&) = delete;
     socket& operator=(const socket&) = delete;
@@ -117,26 +117,27 @@ public:
 
     typedef socket lowest_layer_type;
     typedef boost::asio::io_context::executor_type executor_type;
+    typedef typename channel::endpoint endpoint_type;
 
     socket(boost::asio::io_context& io, uint64_t secret = 0) noexcept(true) 
-        : m_asio(io)
-        , m_channel(create_channel(m_asio, secret))
+        : m_io(io)
+        , m_channel(channel::create(io, secret))
     {
     }
 
     socket(socket&& other) noexcept(true) 
-        : m_asio(other.m_asio)
+        : m_io(other.m_io)
         , m_channel(other.m_channel)
     {
         other.m_channel.reset();
     }
 
-    void open(const endpoint& local) noexcept(false)
+    void open(const endpoint_type& local) noexcept(false)
     {
         m_channel->open(local);
     }
 
-    void open(const endpoint& local, boost::system::error_code& ec) noexcept(true)
+    void open(const endpoint_type& local, boost::system::error_code& ec) noexcept(true)
     {
         try
         {
@@ -153,7 +154,7 @@ public:
         m_channel->close();
     }
 
-    void connect(const endpoint& remote) noexcept(false)
+    void connect(const endpoint_type& remote) noexcept(false)
     {
         std::promise<boost::system::error_code> promise; 
         std::future<boost::system::error_code> future = promise.get_future(); 
@@ -169,7 +170,7 @@ public:
             boost::asio::detail::throw_error(error, "connect");
     }
 
-    void connect(const endpoint& remote, boost::system::error_code& ec) noexcept(true)
+    void connect(const endpoint_type& remote, boost::system::error_code& ec) noexcept(true)
     {
         try
         {
@@ -182,12 +183,12 @@ public:
     }
 
     template<class connect_handler>
-    void async_connect(const endpoint& remote, connect_handler&& callback) noexcept(true)
+    void async_connect(const endpoint_type& remote, connect_handler&& callback) noexcept(true)
     {
         m_channel->connect(remote, std::move(callback));
     }
 
-    void accept(const endpoint& remote) noexcept(false)
+    void accept(const endpoint_type& remote) noexcept(false)
     {
         std::promise<boost::system::error_code> promise; 
         std::future<boost::system::error_code> future = promise.get_future(); 
@@ -203,7 +204,7 @@ public:
             boost::asio::detail::throw_error(error, "accept");
     }
 
-    void accept(const endpoint& remote, boost::system::error_code& ec) noexcept(true)
+    void accept(const endpoint_type& remote, boost::system::error_code& ec) noexcept(true)
     {
         try
         {
@@ -216,7 +217,7 @@ public:
     }
 
     template<class accept_handler>
-    void async_accept(const endpoint& remote, accept_handler&& callback) noexcept(true)
+    void async_accept(const endpoint_type& remote, accept_handler&& callback) noexcept(true)
     {
         m_channel->accept(remote, std::move(callback));
     }
@@ -270,7 +271,7 @@ public:
             &channel::readable,
             boost::asio::buffer_sequence_begin(buffers),
             boost::asio::buffer_sequence_end(buffers),
-            m_asio,
+            m_io,
             ec
             );
 
@@ -289,7 +290,7 @@ public:
             &channel::readable,
             boost::asio::buffer_sequence_begin(buffers),
             boost::asio::buffer_sequence_end(buffers),
-            m_asio,
+            m_io,
             ec
             );
     }
@@ -304,7 +305,7 @@ public:
             &channel::writable,
             boost::asio::buffer_sequence_begin(buffers),
             boost::asio::buffer_sequence_end(buffers),
-            m_asio,
+            m_io,
             ec
             );
 
@@ -323,7 +324,7 @@ public:
             &channel::writable,
             boost::asio::buffer_sequence_begin(buffers),
             boost::asio::buffer_sequence_end(buffers),
-            m_asio,
+            m_io,
             ec
             );
     }
@@ -337,7 +338,7 @@ public:
             &channel::readable,
             boost::asio::buffer_sequence_begin(buffers),
             boost::asio::buffer_sequence_end(buffers),
-            m_asio,
+            m_io,
             callback
             );
     }
@@ -351,27 +352,27 @@ public:
             &channel::writable,
             boost::asio::buffer_sequence_begin(buffers),
             boost::asio::buffer_sequence_end(buffers),
-            m_asio,
+            m_io,
             callback
             );
     }
 
     executor_type get_executor() const noexcept(true)
     {
-        return m_asio.get_executor();
+        return m_io.get_executor();
     }
 
-    endpoint local_endpoint() const noexcept(false)
+    endpoint_type local_endpoint() const noexcept(false)
     {
         return m_channel->host();
     }
 
-    endpoint remote_endpoint() const noexcept(false)
+    endpoint_type remote_endpoint() const noexcept(false)
     {
         return m_channel->peer();
     }
 
-    endpoint local_endpoint(boost::system::error_code& ec) const noexcept(true)
+    endpoint_type local_endpoint(boost::system::error_code& ec) const noexcept(true)
     {
         try
         {
@@ -381,10 +382,10 @@ public:
         {
             ec = ex.code();
         }
-        return endpoint();
+        return endpoint_type();
     }
 
-    endpoint remote_endpoint(boost::system::error_code& ec) const noexcept(true)
+    endpoint_type remote_endpoint(boost::system::error_code& ec) const noexcept(true)
     {
         try
         {
@@ -394,7 +395,7 @@ public:
         {
             ec = ex.code();
         }
-        return endpoint();
+        return endpoint_type();
     }
 
     size_t available() const noexcept(true)
@@ -402,5 +403,15 @@ public:
         return m_channel->readable();
     }
 };
+
+namespace udp {
+    typedef tubus::socket<tubus::channel<boost::asio::ip::udp>> socket;
+    typedef boost::asio::ip::udp::endpoint endpoint;
+}
+
+namespace tcp {
+    typedef tubus::socket<tubus::channel<boost::asio::ip::tcp>> socket;
+    typedef boost::asio::ip::tcp::endpoint endpoint;
+}
 
 }

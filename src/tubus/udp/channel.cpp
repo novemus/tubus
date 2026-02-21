@@ -8,7 +8,8 @@
  * 
  */
 
-#include <tubus/packet.h>
+#include <tubus/utils.h>
+#include <tubus/udp/proto.h>
 #include <tubus/channel.h>
 #include <map>
 #include <set>
@@ -23,39 +24,18 @@
 #include <boost/date_time/posix_time/posix_time_types.hpp>
 #include <boost/date_time/posix_time/posix_time_io.hpp>
 
-namespace tubus {
+namespace tubus { namespace udp {
+
+using namespace proto;
 
 const boost::posix_time::ptime g_zero_time(boost::gregorian::date(1970, 1, 1));
 
-mutable_buffer create_buffer(size_t size) noexcept(true)
+class transport : public tubus::udp_channel, public std::enable_shared_from_this<transport>
 {
-    static std::mutex s_mutex;
-    static std::map<size_t, std::shared_ptr<buffer_factory>> s_pool;
+    static constexpr size_t SOCKET_BUFFER_SIZE = 1048576;
 
-    std::unique_lock<std::mutex> lock(s_mutex);
-    auto res = s_pool.emplace(size, std::make_shared<buffer_factory>(size));
-    return res.first->second->obtain();
-}
-
-template<class value_type> value_type getenv(const std::string& name, const value_type& def) noexcept(true)
-{
-    try
-    {
-        const char *env = std::getenv(name.c_str());
-        return env ? boost::lexical_cast<value_type>(env) : def;
-    }
-    catch (const boost::bad_lexical_cast& ex)
-    {
-        std::cerr << ex.what() << std::endl;
-    }
-
-    return def;
-}
-
-class transport : public channel, public std::enable_shared_from_this<transport>
-{
     enum state 
-    { 
+    {
         neither,
         initial,
         accepting,
@@ -65,60 +45,6 @@ class transport : public channel, public std::enable_shared_from_this<transport>
         tearing,
         finished
     };
-
-    inline static size_t max_packet_size() noexcept(true)
-    {
-        static size_t s_size(getenv("TUBUS_MAX_PACKET_SIZE", 1406ul));
-        return s_size;
-    }
-
-    inline static boost::posix_time::time_duration ping_timeout() noexcept(true)
-    {
-        static boost::posix_time::seconds s_timeout(getenv("TUBUS_PING_TIMEOUT", 15l));
-        return s_timeout;
-    }
-
-    inline static boost::posix_time::time_duration shutdown_timeout() noexcept(true)
-    {
-        static boost::posix_time::milliseconds s_timeout(getenv("TUBUS_SHUTDOWN_TIMEOUT", 2000l));
-        return s_timeout;
-    }
-
-    inline static boost::posix_time::time_duration connect_timeout() noexcept(true)
-    {
-        static boost::posix_time::seconds s_timeout(getenv("TUBUS_CONNECT_TIMEOUT", 30l));
-        return s_timeout;
-    }
-
-    inline static boost::posix_time::time_duration accept_timeout() noexcept(true)
-    {
-        static boost::posix_time::seconds s_timeout(getenv("TUBUS_ACCEPT_TIMEOUT", 30l));
-        return s_timeout;
-    }
-
-    inline static size_t snippet_flight() noexcept(true)
-    {
-        static size_t s_flight(getenv("TUBUS_SNIPPET_FLIGHT", 1024ul));
-        return s_flight;
-    }
-
-    inline static size_t move_attempts() noexcept(true)
-    {
-        static size_t s_attempts(getenv("TUBUS_MOVE_ATTEMPTS", 32ul));
-        return s_attempts;
-    }
-
-    inline static size_t receive_buffer_size() noexcept(true)
-    {
-        static size_t s_size(getenv("TUBUS_RECEIVE_BUFFER_SIZE", 5ul * 1024ul * 1024ul));
-        return s_size;
-    }
-
-    inline static size_t send_buffer_size() noexcept(true)
-    {
-        static size_t s_size(getenv("TUBUS_SEND_BUFFER_SIZE", 5ul * 1024ul * 1024ul));
-        return s_size;
-    }
 
     struct connector
     {
@@ -220,7 +146,7 @@ class transport : public channel, public std::enable_shared_from_this<transport>
                         if (m_status == state::linked)
                         {
                             m_status = state::tearing;
-                            m_dead = m_seen + shutdown_timeout();
+                            m_dead = m_seen + qos::shutdown_timeout();
                         }
                         break;
                     }
@@ -250,7 +176,7 @@ class transport : public channel, public std::enable_shared_from_this<transport>
                         m_repeat = boost::posix_time::microseconds(std::max<uint64_t>(rtt * 2, 10000));
 
                         m_jobs.erase(section::ping);
-                        m_jobs.emplace(section::ping, m_seen + ping_timeout());
+                        m_jobs.emplace(section::ping, m_seen + qos::ping_timeout());
                         break;
                     }
                     default: break;
@@ -270,7 +196,7 @@ class transport : public channel, public std::enable_shared_from_this<transport>
             pack.set<uint32_t>(packet::header_size, 0);
 
             auto now = boost::posix_time::microsec_clock::universal_time();
-            if ((m_status == state::linked && m_seen + ping_timeout() < now - boost::posix_time::seconds(5)) || now > m_dead)
+            if ((m_status == state::linked && m_seen + qos::ping_timeout() < now - boost::posix_time::seconds(5)) || now > m_dead)
             {
                 boost::asio::post(m_io, boost::bind(on_error, boost::asio::error::interrupted));
                 return;
@@ -362,7 +288,7 @@ class transport : public channel, public std::enable_shared_from_this<transport>
 
             on_shutdown = handler;
 
-            m_dead = boost::posix_time::microsec_clock::universal_time() + shutdown_timeout();
+            m_dead = boost::posix_time::microsec_clock::universal_time() + qos::shutdown_timeout();
             
             if (m_status != state::tearing)
             {
@@ -388,7 +314,7 @@ class transport : public channel, public std::enable_shared_from_this<transport>
             m_local = make_pin();
             on_connect = handler;
 
-            m_dead = boost::posix_time::microsec_clock::universal_time() + connect_timeout();
+            m_dead = boost::posix_time::microsec_clock::universal_time() + qos::connect_timeout();
             m_status = state::connecting;
 
             m_jobs.emplace(section::link, g_zero_time);
@@ -411,7 +337,7 @@ class transport : public channel, public std::enable_shared_from_this<transport>
             m_local = make_pin();
             on_connect = handler;
 
-            m_dead = boost::posix_time::microsec_clock::universal_time() + accept_timeout();
+            m_dead = boost::posix_time::microsec_clock::universal_time() + qos::accept_timeout();
             m_status = state::accepting;
 
             return true;
@@ -523,7 +449,7 @@ class transport : public channel, public std::enable_shared_from_this<transport>
                 if (iter == m_moves.end())
                     break;
 
-                if (iter->second.attempt++ == move_attempts())
+                if (iter->second.attempt++ == qos::move_attempts())
                 {
                     boost::asio::post(m_io, boost::bind(on_error, boost::asio::error::broken_pipe));
                     return;
@@ -535,7 +461,7 @@ class transport : public channel, public std::enable_shared_from_this<transport>
                 sect.advance();
             }
 
-            while (m_buffer.available() && m_moves.size() < snippet_flight())
+            while (m_buffer.available() && m_moves.size() < qos::snippet_flight())
             {
                 uint64_t limit = m_range - m_buffer.head();
 
@@ -589,7 +515,7 @@ class transport : public channel, public std::enable_shared_from_this<transport>
         uint64_t writable() const noexcept(true)
         {
             return m_range > m_buffer.tail() 
-                ? std::min(m_range - m_buffer.tail(), send_buffer_size() - (m_buffer.tail() - m_buffer.head()))
+                ? std::min(m_range - m_buffer.tail(), qos::send_buffer_size() - (m_buffer.tail() - m_buffer.head()))
                 : 0;
         }
 
@@ -618,7 +544,7 @@ class transport : public channel, public std::enable_shared_from_this<transport>
 
             uint64_t add(const const_buffer& buf) noexcept(true)
             {
-                if (m_tail + buf.size() - m_head >= send_buffer_size())
+                if (m_tail + buf.size() - m_head >= qos::send_buffer_size())
                     return m_tail;
 
                 m_tail += buf.size();
@@ -872,7 +798,7 @@ class transport : public channel, public std::enable_shared_from_this<transport>
 
             bool map(uint64_t handle, const const_buffer& buffer) noexcept(true)
             {
-                if (handle >= m_tail && handle + buffer.size() - m_head > receive_buffer_size())
+                if (handle >= m_tail && handle + buffer.size() - m_head > qos::receive_buffer_size())
                     return false;
 
                 if (handle >= m_head)
@@ -948,7 +874,7 @@ class transport : public channel, public std::enable_shared_from_this<transport>
             boost::posix_time::ptime time;
 
             edge_job() noexcept(true) 
-                : range(receive_buffer_size())
+                : range(qos::receive_buffer_size())
                 , time(g_zero_time)
             {}
         };
@@ -984,7 +910,7 @@ protected:
         if (buffer.size() < packet::header_size)
             return;
 
-        packet pack(m_secret ? dimmer::invert(m_secret, buffer) : buffer);
+        packet pack(m_secret ? proto::packet::invert(m_secret, buffer) : buffer);
 
         if (m_connector.valid(pack))
         {
@@ -1027,7 +953,7 @@ protected:
 
         if (size > 0)
         {
-            auto buffer = create_buffer(size);
+            auto buffer = tubus::create_buffer(size);
             m_socket.async_receive(buffer, [weak, buffer](const boost::system::error_code& error, size_t size)
             {
                 auto ptr = weak.lock();
@@ -1081,7 +1007,7 @@ protected:
 
         std::weak_ptr<transport> weak = shared_from_this();
 
-        packet pack(create_buffer(max_packet_size()));
+        packet pack(tubus::create_buffer(qos::max_packet_size()));
         m_connector.imbue(pack);
 
         auto status = m_connector.status();
@@ -1095,7 +1021,7 @@ protected:
 
         if (pack.size() > packet::header_size)
         {
-            auto buffer = m_secret == 0 ? pack : dimmer::invert(m_secret, pack);
+            auto buffer = m_secret == 0 ? pack : proto::packet::invert(m_secret, pack);
             m_socket.async_send(buffer, [weak, buffer](const boost::system::error_code& error, size_t size)
             {
                 auto ptr = weak.lock();
@@ -1113,8 +1039,8 @@ protected:
         else
         {
             auto timeout = status == state::accepting
-                ? accept_timeout() : (m_connector.deffered() || m_istreamer.deffered() || m_ostreamer.deffered())
-                ? m_repeat : ping_timeout();
+                ? qos::accept_timeout() : (m_connector.deffered() || m_istreamer.deffered() || m_ostreamer.deffered())
+                ? m_repeat : qos::ping_timeout();
 
             m_timer.expires_from_now(timeout);
             m_timer.async_wait([weak](const boost::system::error_code& error)
@@ -1134,7 +1060,7 @@ protected:
     inline void run() noexcept(true)
     {
         std::weak_ptr<transport> weak = shared_from_this();
-        boost::asio::post(m_io, [weak]()
+        boost::asio::post(m_socket.get_executor(), [weak]()
         {
             auto ptr = weak.lock();
             if (ptr)
@@ -1154,8 +1080,7 @@ protected:
 public:
 
     transport(boost::asio::io_context& io, uint64_t secret) noexcept(true)
-        : m_io(io)
-        , m_socket(io)
+        : m_socket(io)
         , m_timer(io)
         , m_repeat(boost::posix_time::milliseconds(100))
         , m_connector(io, m_repeat)
@@ -1174,13 +1099,12 @@ public:
     {
         std::unique_lock<std::mutex> lock(m_mutex);
 
-        static const size_t SOCKET_BUFFER_SIZE = 1048576;
-
         if (m_connector.status() != state::neither)
-            boost::asio::detail::throw_error(boost::asio::error::no_permission, "bind");
+            boost::asio::detail::throw_error(boost::asio::error::no_permission, "open");
 
         m_socket.open(local.protocol());
 
+        m_socket.non_blocking(true);
         m_socket.set_option(boost::asio::socket_base::send_buffer_size(SOCKET_BUFFER_SIZE));
         m_socket.set_option(boost::asio::socket_base::receive_buffer_size(SOCKET_BUFFER_SIZE));
         m_socket.set_option(boost::asio::socket_base::reuse_address(true));
@@ -1223,7 +1147,7 @@ public:
 
         if (m_connector.status() != state::initial)
         {
-            boost::asio::post(m_io, boost::bind(handler, boost::asio::error::no_permission));
+            boost::asio::post(m_socket.get_executor(), boost::bind(handler, boost::asio::error::no_permission));
             return;
         }
 
@@ -1232,7 +1156,7 @@ public:
 
         if (ec)
         {
-            boost::asio::post(m_io, boost::bind(handler, ec));
+            boost::asio::post(m_socket.get_executor(), boost::bind(handler, ec));
             return;
         }
 
@@ -1245,10 +1169,10 @@ public:
     void accept(const endpoint& remote, const callback& handler) noexcept(true) override
     {
         std::unique_lock<std::mutex> lock(m_mutex);
-                
+
         if (m_connector.status() != state::initial)
         {
-            boost::asio::post(m_io, boost::bind(handler, boost::asio::error::no_permission));
+            boost::asio::post(m_socket.get_executor(), boost::bind(handler, boost::asio::error::no_permission));
             return;
         }
 
@@ -1257,7 +1181,7 @@ public:
 
         if (ec)
         {
-            boost::asio::post(m_io, boost::bind(handler, ec));
+            boost::asio::post(m_socket.get_executor(), boost::bind(handler, ec));
             return;
         }
 
@@ -1277,7 +1201,7 @@ public:
             boost::system::error_code ec = status <= state::initial ? boost::asio::error::not_connected : 
                 status <= state::connecting ? boost::asio::error::try_again : boost::asio::error::bad_descriptor;
 
-            boost::asio::post(m_io, boost::bind(handler, ec, 0));
+            boost::asio::post(m_socket.get_executor(), boost::bind(handler, ec, 0));
             return;
         }
 
@@ -1295,7 +1219,7 @@ public:
             boost::system::error_code ec = status <= state::initial ? boost::asio::error::not_connected : 
                 status <= state::connecting ? boost::asio::error::try_again : boost::asio::error::bad_descriptor;
 
-            boost::asio::post(m_io, boost::bind(handler, ec, 0));
+            boost::asio::post(m_socket.get_executor(), boost::bind(handler, ec, 0));
             return;
         }
 
@@ -1327,7 +1251,6 @@ public:
 
 private:
 
-    boost::asio::io_context& m_io;
     boost::asio::ip::udp::socket m_socket;
     boost::asio::deadline_timer m_timer;
     boost::posix_time::time_duration m_repeat;
@@ -1338,9 +1261,11 @@ private:
     mutable std::mutex m_mutex;
 };
 
-std::shared_ptr<channel> create_channel(boost::asio::io_context& io, uint64_t secret) noexcept(true)
+}
+
+template<> std::shared_ptr<udp_channel> udp_channel::create(boost::asio::io_context& io, uint64_t secret) noexcept(true)
 {
-    return std::make_shared<transport>(io, secret);
+    return std::make_shared<udp::transport>(io, secret);
 }
 
 }

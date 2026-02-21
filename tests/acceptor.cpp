@@ -13,23 +13,23 @@
 #include <tubus/acceptor.h>
 #include <boost/test/unit_test.hpp>
 
-BOOST_AUTO_TEST_SUITE(tubus_acceptor);
+BOOST_AUTO_TEST_SUITE(udp_acceptor);
 
 const boost::system::error_code NONE_ERROR;
 
 BOOST_AUTO_TEST_CASE(core)
 {
-    tubus::endpoint se(boost::asio::ip::make_address("127.0.0.1"), 3000);
-    tubus::endpoint c1(boost::asio::ip::make_address("127.0.0.1"), 3001);
-    tubus::endpoint c2(boost::asio::ip::make_address("127.0.0.1"), 3002);
+    tubus::udp::endpoint se(boost::asio::ip::make_address("127.0.0.1"), 3000);
+    tubus::udp::endpoint c1(boost::asio::ip::make_address("127.0.0.1"), 3001);
+    tubus::udp::endpoint c2(boost::asio::ip::make_address("127.0.0.1"), 3002);
 
-    tubus::acceptor server(g_reactor.io);
+    tubus::udp::acceptor server(g_reactor.io);
     BOOST_REQUIRE_NO_THROW(server.open(se));
 
     std::promise<void> ap1;
     std::future<void> af1 = ap1.get_future();
 
-    tubus::socket peer1(g_reactor.io);
+    tubus::udp::socket peer1(g_reactor.io);
     server.async_accept(peer1, [&](const boost::system::error_code& code)
     {
         BOOST_CHECK_EQUAL(code, NONE_ERROR);
@@ -46,7 +46,7 @@ BOOST_AUTO_TEST_CASE(core)
     std::promise<void> ap2;
     std::future<void> af2 = ap2.get_future();
 
-    tubus::socket peer2(g_reactor.io);
+    tubus::udp::socket peer2(g_reactor.io);
     server.async_accept(peer2, [&](const boost::system::error_code& code)
     {
         BOOST_CHECK_EQUAL(code, NONE_ERROR);
@@ -60,11 +60,11 @@ BOOST_AUTO_TEST_CASE(core)
         ap2.set_value();
     });
 
-    tubus::socket client1(g_reactor.io);
+    tubus::udp::socket client1(g_reactor.io);
     BOOST_REQUIRE_NO_THROW(client1.open(c1));
     BOOST_REQUIRE_NO_THROW(client1.connect(se));
 
-    tubus::socket client2(g_reactor.io);
+    tubus::udp::socket client2(g_reactor.io);
     BOOST_REQUIRE_NO_THROW(client2.open(c2));
     BOOST_REQUIRE_NO_THROW(client2.connect(se));
 

@@ -10,6 +10,7 @@
 
 #pragma once
 
+#include <tubus/utils.h>
 #include <tubus/buffer.h>
 #include <random>
 
@@ -22,7 +23,7 @@
 #define be64toh ntohll
 #endif
 
-namespace tubus {
+namespace tubus { namespace udp {  namespace proto {
 
 struct section : public mutable_buffer
 {
@@ -178,10 +179,7 @@ struct packet : public mutable_buffer
     {
         truncate((uint8_t*)stub().data() - (uint8_t*)data());
     }
-};
 
-struct dimmer
-{
     static mutable_buffer invert(uint64_t secret, const mutable_buffer& buffer) noexcept(true)
     {
         uint8_t* ptr = (uint8_t*)buffer.data();
@@ -204,11 +202,11 @@ struct dimmer
 
         ptr += sizeof(uint64_t);
 
-        uint64_t inverter = make_inverter(secret, salt, dim);
+        uint64_t inverter = tubus::make_inverter(secret, salt, dim);
         while (ptr + sizeof(uint64_t) <= end)
         {
             *(uint64_t*)ptr ^= inverter;
-            inverter = make_inverter(inverter, salt, dim);
+            inverter = tubus::make_inverter(inverter, salt, dim);
             ptr += sizeof(uint64_t);
         }
 
@@ -222,15 +220,6 @@ struct dimmer
 
         return buffer;
     }
-
-private:
-
-    static inline uint64_t make_inverter(uint64_t secret, uint64_t salt, bool dim) noexcept(true)
-    {
-        uint64_t base = secret + salt;
-        uint64_t shift = (base & 0x3F) | 0x01;
-        return dim ? htobe64(((base >> shift) | (base << (64 - shift))) ^ salt) : be64toh(((base >> shift) | (base << (64 - shift))) ^ salt);
-    }
 };
 
-}
+}}}

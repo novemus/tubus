@@ -54,10 +54,14 @@ if (NOT BUILD_SHARED_LIBS)
 endif()
 
 set(SOURCES "${CMAKE_CURRENT_BINARY_DIR}/export_header/tubus/export.h"
+    src/tubus/utils.h
+    src/tubus/utils.cpp
     src/tubus/channel.h
     src/tubus/buffer.h
-    src/tubus/packet.h
-    src/tubus/channel.cpp
+    src/tubus/udp/proto.h
+    src/tubus/tcp/proto.h
+    src/tubus/udp/channel.cpp
+    src/tubus/tcp/channel.cpp
     )
 
 set(HEADERS "${CMAKE_CURRENT_BINARY_DIR}/export_header/tubus/export.h"
@@ -158,9 +162,9 @@ if(NOT TUBUS_SKIP_TEST_RULES)
     set(TUBUS_TEST tubus_ut)
 
     if(MSVC)
-        set(TESTS_SOURCES tests/buffer.cpp tests/packet.cpp tests/tubus.cpp tests/socket.cpp)
+        set(TESTS_SOURCES tests/buffer.cpp tests/proto.cpp tests/tubus.cpp tests/socket.cpp)
     else()
-        set(TESTS_SOURCES tests/buffer.cpp tests/packet.cpp tests/tubus.cpp tests/socket.cpp tests/acceptor.cpp)
+        set(TESTS_SOURCES tests/buffer.cpp tests/proto.cpp tests/tubus.cpp tests/socket.cpp tests/acceptor.cpp)
     endif()
 
     add_executable(${TUBUS_TEST} ${TESTS_SOURCES})
