@@ -1,5 +1,9 @@
 # Change Log
 
+## 1.3.0 (Feb 24, 2026)
+
+- Implementation on TCP.
+
 ## 1.2.5 (Feb 10, 2026)
 
 - Increased data transfer rate.

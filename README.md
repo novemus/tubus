@@ -1,8 +1,8 @@
 # README
 
-This repository contains the cross-platform C++ [tubus](https://github.com/novemus/tubus) library, which implements a streaming transport protocol based on *UDP*. The protocol was originally developed as part of the [wormhole](https://github.com/novemus/wormhole) utility. It can be used in cases where the use of TCP is difficult, for example, for applications running over NAT. Optionally, to increase connection security, `tubus` packets can be obfuscated by a pre-shared key.
+This repository contains the cross-platform C++ [tubus](https://github.com/novemus/tubus) library, which implements a streaming transport based on UDP or TCP. The library was originally developed for the [wormhole](https://github.com/novemus/wormhole) utility to provide a NAT/DPI-tolerance transport protocol. Network stack over UDP/TCP, includig the UDP stream protocol, can optionally be obfuscated by a pre-shared key.
 
-For the convenience of developing applications based on `boost::asio`, the asio-like primitives `tubus::socket` and `tubus::acceptor` are offered. The `tubus::socket` primitive implements *AsyncReadStream*, *AsyncWriteStream*, *Stream*, *SyncReadStream* and *SyncWriteStream* concepts, so it can be used as the lower layer of `boost::asio::ssl::stream`.
+For the convenience of developing applications based on `boost::asio`, the asio-like primitives `tubus::socket` is offered. It implements the *AsyncReadStream*, *AsyncWriteStream*, *Stream*, *SyncReadStream* and *SyncWriteStream* concepts, so it can be used as the lower layer for the `boost::asio::ssl::stream`.
 
 ## Core
 
@@ -11,7 +11,7 @@ Tubus сhannel interface.
 ```cpp
 namespace tubus {
 ...
-struct channel
+template<class proto> struct channel
 {
     virtual ~channel() noexcept(true) {}
     virtual void close() noexcept(true) = 0;
@@ -25,9 +25,13 @@ struct channel
     virtual size_t readable() const noexcept(true) = 0;
     virtual endpoint host() const noexcept(false) = 0;
     virtual endpoint peer() const noexcept(false) = 0;
+
+    static std::shared_ptr<channel<proto>> create(boost::asio::io_context& io, uint64_t secret = 0) noexcept(true);
 };
+
+typedef channel<boost::asio::ip::udp> udp_channel;
+typedef channel<boost::asio::ip::tcp> tcp_channel;
 ...
-channel_ptr create_channel(boost::asio::io_context& io, uint64_t /*pre-shared key*/ secret = 0) noexcept(true);
 }
 ```
 
@@ -45,12 +49,12 @@ channel_ptr create_channel(boost::asio::io_context& io, uint64_t /*pre-shared ke
 
 ## Examples
 
-Data consumer implemented using `tubus::channel`.
+Data consumer implemented using `tubus::udp_channel`.
 
 ```cpp
 #include <tubus/channel.h>
 ...
-auto consumer = tubus::create_channel(io_service, key);
+auto consumer = tubus::udp_channel::create(io_service, key);
 consumer->open(local_endpoint);
 consumer->connect(remote_endpoint, [&](const boost::system::error_code& error)
 {
@@ -68,12 +72,12 @@ consumer->connect(remote_endpoint, [&](const boost::system::error_code& error)
 });
 ```
 
-Data producer implemented using `tubus::socket`.
+Data producer implemented using `tubus::udp::socket`.
 
 ```cpp
 #include <tubus/socket.h>
 ...
-tubus::socket producer(io_service, key);
+tubus::udp::socket producer(io_service, key);
 producer.open(local_endpoint);
 producer.async_accept(remote_endpoint, [&](const boost::system::error_code& error)
 {
@@ -87,39 +91,13 @@ producer.async_accept(remote_endpoint, [&](const boost::system::error_code& erro
 });
 ```
 
-Server implemented using `tubus::acceptor` (*Linux* only).
-
-```cpp
-#include <tubus/acceptor.h>
-...
-tubus::acceptor server(io_service, key);
-server.open(local_endpoint);
-
-tubus::socket peer1(io_service);
-server.accept(peer1);
-
-peer1.read_some(...);
-peer1.write_some(...);
-
-tubus::socket peer2(io_service);
-server.accept(peer2);
-
-peer2.read_some(...);
-peer2.write_some(...);
-
-peer1.shutdown();
-peer2.shutdown();
-
-server.close();
-```
-
-Encrypted stream implemented using `boost::asio::ssl::stream` and `tubus::socket`.
+Encrypted stream implemented using `boost::asio::ssl::stream` and `tubus::udp::socket`.
 
 ```cpp
 #include <boost/asio/ssl.hpp>
 #include <tubus/socket.h>
 ...
-boost::asio::ssl::stream<tubus::socket> client(tubus::socket(io_service, key), ssl_ctx);
+boost::asio::ssl::stream<tubus::udp::socket> client(tubus::udp::socket(io_service, key), ssl_ctx);
 
 client.lowest_layer().open(local_endpoint);
 client.lowest_layer().connect(remote_endpoint);
@@ -130,6 +108,8 @@ boost::asio::write(client, ...);
 
 client.shutdown();
 ```
+
+The use of TCP primitives is the same.
 
 ## Build
 
