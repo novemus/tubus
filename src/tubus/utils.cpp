@@ -59,12 +59,6 @@ size_t send_buffer_size() noexcept(true)
     return s_size;
 }
 
-boost::posix_time::time_duration tcp_io_timeout() noexcept(true)
-{
-    static boost::posix_time::milliseconds s_timeout(getenv("TUBUS_UDP_TCP_IO_TIMEOUT", 10000l));
-    return s_timeout;
-}
-
 size_t max_packet_size() noexcept(true)
 {
     static size_t s_size(getenv("TUBUS_UDP_MAX_PACKET_SIZE", 1406ul));
@@ -129,9 +123,9 @@ boost::posix_time::time_duration connect_timeout() noexcept(true)
     return s_timeout;
 }
 
-boost::posix_time::time_duration io_timeout() noexcept(true)
+boost::posix_time::time_duration accept_timeout() noexcept(true)
 {
-    static boost::posix_time::milliseconds s_timeout(getenv("TUBUS_TCP_IO_TIMEOUT", 10000l));
+    static boost::posix_time::seconds s_timeout(getenv("TUBUS_TCP_ACCEPT_TIMEOUT", 10000l));
     return s_timeout;
 }
 

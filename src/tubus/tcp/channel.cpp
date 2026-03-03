@@ -44,16 +44,12 @@ protected:
 
     void async_read() noexcept(true)
     {
-        stop_io_timer(true);
-
         if (m_readers.empty())
             return;
 
         auto op = m_readers.front();
         m_readers.pop();
         m_rb_size -= op.buffer.size();
-
-        start_io_timer(true);
 
         m_stream->async_read(op.buffer, [this, weak = weak_from_this(), callback = op.callback](const boost::system::error_code& error, size_t count)
         {
@@ -68,16 +64,12 @@ protected:
 
     void async_write() noexcept(true)
     {
-        stop_io_timer(false);
-
         if (m_writers.empty())
             return;
 
         auto op = m_writers.front();
         m_writers.pop();
         m_wb_size -= op.buffer.size();
-
-        start_io_timer(false);
 
         m_stream->async_write(op.buffer, [this, weak = weak_from_this(), callback = op.callback](const boost::system::error_code& error, size_t count)
         {
@@ -96,53 +88,18 @@ protected:
         {
             auto op = m_readers.front();
             m_readers.pop();
-            boost::asio::post(m_io, [callback = op.callback]()
-            {
-                callback(boost::asio::error::operation_aborted, 0);
-            });
+            boost::asio::post(m_io, std::bind(op.callback, boost::asio::error::operation_aborted, 0));
         }
 
         while (not m_writers.empty())
         {
             auto op = m_writers.front();
             m_writers.pop();
-            boost::asio::post(m_io, [callback = op.callback]()
-            {
-                callback(boost::asio::error::operation_aborted, 0);
-            });
+            boost::asio::post(m_io, std::bind(op.callback, boost::asio::error::operation_aborted, 0));
         }
 
         boost::system::error_code ec;
-        m_read_timer.cancel(ec);
-        m_write_timer.cancel(ec);
-        m_conn_timer.cancel(ec);
-    }
-
-    void start_io_timer(bool read) noexcept(true)
-    {
-        boost::asio::deadline_timer& timer = read ? m_read_timer : m_write_timer;
-        timer.expires_from_now(qos::io_timeout());
-        timer.async_wait([this, weak = weak_from_this()](const boost::system::error_code& error)
-        {
-            auto ptr = weak.lock();
-            if (ptr)
-            {
-                if (not error)
-                {
-                    std::unique_lock<std::mutex> lock(m_mutex);
-                    boost::system::error_code ec;
-                    m_stream->socket().cancel(ec);
-                    clear();
-                }
-            }
-        });
-    }
-
-    void stop_io_timer(bool read) noexcept(true)
-    {
-        boost::asio::deadline_timer& timer = read ? m_read_timer : m_write_timer;
-        boost::system::error_code ec;
-        timer.cancel(ec);
+        m_timer.cancel(ec);
     }
 
     void do_connect(const endpoint& remote, const callback& handler, const boost::posix_time::ptime& deadline) noexcept(true)
@@ -169,15 +126,18 @@ protected:
                 if (error != boost::asio::error::connection_refused || boost::posix_time::microsec_clock::universal_time() > deadline)
                 {
                     handler(error);
-
-                    std::unique_lock<std::mutex> lock(m_mutex);
-                    boost::system::error_code ec;
-                    m_conn_timer.cancel(ec);
                     return;
                 }
 
-                m_conn_timer.expires_from_now(boost::posix_time::seconds(1));
-                m_conn_timer.async_wait([this, weak, remote, handler, deadline](const boost::system::error_code& error)
+                std::unique_lock<std::mutex> lock(m_mutex);
+                if (not m_stream->socket().is_open())
+                {
+                    handler(boost::asio::error::operation_aborted);
+                    return;
+                }
+
+                m_timer.expires_from_now(boost::posix_time::seconds(1));
+                m_timer.async_wait([this, weak, remote, handler, deadline](const boost::system::error_code& error)
                 {
                     if (auto ptr = weak.lock())
                     {
@@ -187,12 +147,12 @@ protected:
                             handler(error);
                     }
                     else
-                        handler(boost::asio::error::shut_down);
+                        handler(boost::asio::error::operation_aborted);
                 });
                 return;
             }
 
-            handler(boost::asio::error::shut_down);
+            handler(boost::asio::error::operation_aborted);
         });
     }
 
@@ -205,8 +165,7 @@ protected:
             boost::system::error_code ec;
             m_stream->socket().close(ec);
         }
-
-        if (not m_acceptor.is_open())
+        else
         {
             m_acceptor.open(m_bind.protocol());
             m_acceptor.non_blocking(true);
@@ -216,8 +175,8 @@ protected:
             m_acceptor.bind(m_bind);
             m_acceptor.listen();
 
-            m_conn_timer.expires_at(deadline);
-            m_conn_timer.async_wait([this, weak = weak_from_this()](const boost::system::error_code& error)
+            m_timer.expires_at(deadline);
+            m_timer.async_wait([this, weak = weak_from_this()](const boost::system::error_code& error)
             {
                 if (not error)
                 {
@@ -236,29 +195,35 @@ protected:
         {
             if (auto ptr = weak.lock())
             {
-                auto expected = [&](const endpoint& actual)
+                auto expected = [&]()
                 {
+                    std::unique_lock<std::mutex> lock(m_mutex);
+                    auto actual = m_stream->socket().remote_endpoint();
+
                     if (remote.port() != 0 && remote.port() != actual.port())
                         return false;
                     if (not remote.address().is_unspecified() && remote.address() != actual.address())
                         return false;
+
                     return true;
                 };
 
-                if (error || expected(m_stream->socket().remote_endpoint()))
+                if (error || expected())
                 {
                     handler(error);
 
                     std::unique_lock<std::mutex> lock(m_mutex);
                     boost::system::error_code ec;
-                    m_conn_timer.cancel(ec);
+                    m_timer.cancel(ec);
                     m_acceptor.close(ec);
                     return;
                 }
+
                 do_accept(remote, handler, boost::posix_time::ptime());
+                return;
             }
 
-            handler(boost::asio::error::shut_down);
+            handler(boost::asio::error::operation_aborted);
         });
     }
 
@@ -268,9 +233,7 @@ public:
         : m_io(io)
         , m_stream(std::make_shared<proto::stream>(io, secret))
         , m_acceptor(io)
-        , m_conn_timer(m_stream->socket().get_executor())
-        , m_read_timer(m_stream->socket().get_executor())
-        , m_write_timer(m_stream->socket().get_executor())
+        , m_timer(m_stream->socket().get_executor())
     {
     }
 
@@ -300,11 +263,8 @@ public:
         boost::system::error_code ec;
         m_acceptor.close(ec);
         m_stream->socket().shutdown(boost::asio::socket_base::shutdown_both, ec);
-        boost::asio::post(m_io, [handler, ec]()
-        {
-            handler(ec);
-        });
         clear();
+        boost::asio::post(m_io, std::bind(handler, ec));
     }
 
     void connect(const endpoint& remote, const callback& handler) noexcept(true) override
@@ -314,19 +274,22 @@ public:
 
     void accept(const endpoint& remote, const callback& handler) noexcept(true) override
     {
-        do_accept(remote, handler, boost::posix_time::microsec_clock::universal_time() + qos::connect_timeout());
+        do_accept(remote, handler, boost::posix_time::microsec_clock::universal_time() + qos::accept_timeout());
     }
 
     void read(const mutable_buffer& buffer, const io_callback& handler) noexcept(true) override
     {
         std::unique_lock<std::mutex> lock(m_mutex);
 
+        if (not m_stream->socket().is_open())
+        {
+            boost::asio::post(m_io, std::bind(handler, boost::asio::error::not_connected, 0));
+            return;
+        }
+    
         if (m_wb_size + buffer.size() > qos::receive_buffer_size())
         {
-            boost::asio::post(m_io, [handler]()
-            {
-                handler(boost::asio::error::message_size, 0);
-            });
+            boost::asio::post(m_io, std::bind(handler, boost::asio::error::message_size, 0));
             return;
         }
 
@@ -341,12 +304,15 @@ public:
     {
         std::unique_lock<std::mutex> lock(m_mutex);
 
+        if (not m_stream->socket().is_open())
+        {
+            boost::asio::post(m_io, std::bind(handler, boost::asio::error::not_connected, 0));
+            return;
+        }
+
         if (m_wb_size + buffer.size() > qos::send_buffer_size())
         {
-            boost::asio::post(m_io, [handler]()
-            {
-                handler(boost::asio::error::message_size, 0);
-            });
+            boost::asio::post(m_io, std::bind(handler, boost::asio::error::message_size, 0));
             return;
         }
 
@@ -387,9 +353,7 @@ private:
     std::shared_ptr<proto::stream> m_stream;
     boost::asio::ip::tcp::acceptor m_acceptor;
     boost::asio::ip::tcp::endpoint m_bind;
-    boost::asio::deadline_timer m_conn_timer;
-    boost::asio::deadline_timer m_read_timer;
-    boost::asio::deadline_timer m_write_timer;
+    boost::asio::deadline_timer m_timer;
     std::queue<transport::read_task> m_readers;
     std::queue<transport::write_task> m_writers;
     size_t m_rb_size = 0;
