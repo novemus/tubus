@@ -367,6 +367,7 @@ class transport : public tubus::udp_channel, public std::enable_shared_from_this
     {
         ostreamer(boost::asio::io_context& io, boost::posix_time::time_duration& repeat) noexcept(true)
             : m_io(io)
+            , m_strand(io)
             , m_repeat(repeat)
         {
         }
@@ -390,7 +391,7 @@ class transport : public tubus::udp_channel, public std::enable_shared_from_this
                 else if (cursor > iter->head) 
                     sent = cursor - iter->head;
 
-                boost::asio::post(m_io, boost::bind(iter->callback, err, sent));
+                boost::asio::post(m_strand, boost::bind(iter->callback, err, sent));
                 ++iter;
             }
 
@@ -416,7 +417,7 @@ class transport : public tubus::udp_channel, public std::enable_shared_from_this
                     auto iter = m_writers.begin();
                     while (iter != m_writers.end() && iter->head + iter->size <= cursor)
                     {
-                        boost::asio::post(m_io, boost::bind(iter->callback, boost::system::error_code(), iter->size));
+                        boost::asio::post(m_strand, boost::bind(iter->callback, boost::system::error_code(), iter->size));
                         iter = m_writers.erase(iter);
                     }
                 }
@@ -611,6 +612,7 @@ class transport : public tubus::udp_channel, public std::enable_shared_from_this
         };
 
         boost::asio::io_context& m_io;
+        boost::asio::io_context::strand m_strand;
         boost::posix_time::time_duration& m_repeat;
         streambuf m_buffer;
         std::map<uint64_t, flight> m_moves;
@@ -624,6 +626,7 @@ class transport : public tubus::udp_channel, public std::enable_shared_from_this
     {
         istreamer(boost::asio::io_context& io, boost::posix_time::time_duration& repeat) noexcept(true)
             : m_io(io)
+            , m_strand(io)
             , m_repeat(repeat)
         {
         }
@@ -638,7 +641,7 @@ class transport : public tubus::udp_channel, public std::enable_shared_from_this
             auto iter = m_readers.begin();
             while (iter != m_readers.end())
             {
-                boost::asio::post(m_io, boost::bind(iter->callback, err, iter->read));
+                boost::asio::post(m_strand, boost::bind(iter->callback, err, iter->read));
                 ++iter;
             }
 
@@ -764,7 +767,7 @@ class transport : public tubus::udp_channel, public std::enable_shared_from_this
                         m_edge.time = g_zero_time;
                     }
 
-                    boost::asio::post(m_io, boost::bind(iter->callback, boost::system::error_code(), iter->read));
+                    boost::asio::post(m_strand, boost::bind(iter->callback, boost::system::error_code(), iter->read));
                     m_readers.erase(iter);
                 }
             }
@@ -880,6 +883,7 @@ class transport : public tubus::udp_channel, public std::enable_shared_from_this
         };
 
         boost::asio::io_context& m_io;
+        boost::asio::io_context::strand m_strand;
         boost::posix_time::time_duration& m_repeat;
         streambuf m_buffer;
         std::set<uint64_t> m_acks;
