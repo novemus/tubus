@@ -42,64 +42,52 @@ class transport : public tubus::tcp_channel, public std::enable_shared_from_this
 
 protected:
 
-    void async_read() noexcept(true)
+    void async_read(const mutable_buffer& buffer, const io_callback& handler) noexcept(true)
     {
-        if (m_readers.empty())
-            return;
-
-        auto op = m_readers.front();
-        m_readers.pop();
-        m_rb_size -= op.buffer.size();
-
-        m_stream->async_read(op.buffer, [this, weak = weak_from_this(), callback = op.callback](const boost::system::error_code& error, size_t count)
+        m_stream->async_read(buffer, [this, weak = weak_from_this(), buffer, handler](const boost::system::error_code& error, size_t count)
         {
             if (auto ptr = weak.lock())
             {
                 std::unique_lock<std::mutex> lock(m_mutex);
-                async_read();
+
+                m_rq.pop();
+                m_rb_size -= buffer.size();
+                
+                if (not m_rq.empty())
+                {
+                    auto op = m_rq.front();
+                    async_read(op.buffer, op.callback);
+                }
+
+                boost::asio::post(m_strand, std::bind(handler, error, count));
             }
-            callback(error, count);
+            else
+                handler(error, count);
         });
     }
 
-    void async_write() noexcept(true)
+    void async_write(const const_buffer& buffer, const io_callback& handler) noexcept(true)
     {
-        if (m_writers.empty())
-            return;
-
-        auto op = m_writers.front();
-        m_writers.pop();
-        m_wb_size -= op.buffer.size();
-
-        m_stream->async_write(op.buffer, [this, weak = weak_from_this(), callback = op.callback](const boost::system::error_code& error, size_t count)
+        m_stream->async_write(buffer, [this, weak = weak_from_this(), buffer, handler](const boost::system::error_code& error, size_t count)
         {
             if (auto ptr = weak.lock())
             {
                 std::unique_lock<std::mutex> lock(m_mutex);
-                async_write();
+
+                m_wq.pop();
+                m_wb_size -= buffer.size();
+                
+                if (not m_wq.empty())
+                {
+                    auto op = m_wq.front();
+                    async_write(op.buffer, op.callback);
+                }
+
+                boost::asio::post(m_strand, std::bind(handler, error, count));
             }
-            callback(error, count);
+            else
+                handler(error, count);
         });
-    }
-
-    void clear() noexcept(true)
-    {
-        while (not m_readers.empty())
-        {
-            auto op = m_readers.front();
-            m_readers.pop();
-            boost::asio::post(m_io, std::bind(op.callback, boost::asio::error::operation_aborted, 0));
-        }
-
-        while (not m_writers.empty())
-        {
-            auto op = m_writers.front();
-            m_writers.pop();
-            boost::asio::post(m_io, std::bind(op.callback, boost::asio::error::operation_aborted, 0));
-        }
-
-        boost::system::error_code ec;
-        m_timer.cancel(ec);
     }
 
     void do_connect(const endpoint& remote, const callback& handler, const boost::posix_time::ptime& deadline) noexcept(true)
@@ -231,6 +219,7 @@ public:
 
     transport(boost::asio::io_context& io, uint64_t secret) noexcept(true)
         : m_io(io)
+        , m_strand(io)
         , m_stream(std::make_shared<proto::stream>(io, secret))
         , m_acceptor(io)
         , m_timer(m_stream->socket().get_executor())
@@ -254,7 +243,7 @@ public:
         boost::system::error_code ec;
         m_acceptor.close(ec);
         m_stream->socket().close(ec);
-        clear();
+        m_timer.cancel(ec);
     }
 
     void shutdown(const callback& handler) noexcept(true) override
@@ -263,7 +252,7 @@ public:
         boost::system::error_code ec;
         m_acceptor.close(ec);
         m_stream->socket().shutdown(boost::asio::socket_base::shutdown_both, ec);
-        clear();
+        m_timer.cancel(ec);
         boost::asio::post(m_io, std::bind(handler, ec));
     }
 
@@ -293,11 +282,11 @@ public:
             return;
         }
 
-        m_readers.emplace(buffer, handler);
+        m_rq.emplace(buffer, handler);
         m_rb_size += buffer.size();
 
-        if (m_readers.size() == 1)
-            async_read();
+        if (m_rq.size() == 1)
+            async_read(buffer, handler);
     }
 
     void write(const const_buffer& buffer, const io_callback& handler) noexcept(true)
@@ -316,11 +305,11 @@ public:
             return;
         }
 
-        m_writers.emplace(buffer, handler);
+        m_wq.emplace(buffer, handler);
         m_wb_size += buffer.size();
 
-        if (m_writers.size() == 1)
-            async_write();
+        if (m_wq.size() == 1)
+            async_write(buffer, handler);
     }
 
     size_t writable() const noexcept(true)
@@ -350,12 +339,13 @@ public:
 private:
 
     boost::asio::io_context& m_io;
+    boost::asio::io_context::strand m_strand;
     std::shared_ptr<proto::stream> m_stream;
     boost::asio::ip::tcp::acceptor m_acceptor;
     boost::asio::ip::tcp::endpoint m_bind;
     boost::asio::deadline_timer m_timer;
-    std::queue<transport::read_task> m_readers;
-    std::queue<transport::write_task> m_writers;
+    std::queue<transport::read_task> m_rq;
+    std::queue<transport::write_task> m_wq;
     size_t m_rb_size = 0;
     size_t m_wb_size = 0;
     mutable std::mutex m_mutex;
