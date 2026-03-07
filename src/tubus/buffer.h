@@ -10,7 +10,7 @@
 
 #pragma once
 
-#include <list>
+#include <stack>
 #include <ctime>
 #include <cstring>
 #include <stdexcept>
@@ -287,72 +287,5 @@ inline mutable_buffer buffer(void* data, size_t size) noexcept(true)
 {
     return mutable_buffer(boost::asio::buffer(data, size));
 }
-
-class buffer_factory : public std::enable_shared_from_this<buffer_factory>
-{
-    typedef std::weak_ptr<buffer_factory> weak_ptr;
-    typedef std::shared_ptr<buffer_factory> self_ptr;
-
-    static void destroy(weak_ptr weak, uint8_t* ptr) noexcept(true)
-    {
-        self_ptr self = weak.lock();
-        if (self)
-        {
-            if (self->cache(ptr))
-                return;
-        }
-        delete[] ptr;
-    }
-
-    bool cache(uint8_t* ptr) noexcept(true)
-    {
-        std::unique_lock<std::mutex> lock(m_mutex);
-
-        static const size_t s_max_cache_size = 16;
-
-        if (m_cache.size() < s_max_cache_size)
-        {
-            m_cache.emplace_back(ptr,
-                std::bind(&buffer_factory::destroy, shared_from_this(), std::placeholders::_1)
-                );
-            return true;
-        }
-
-        return false;
-    }
-
-public:
-
-    buffer_factory(size_t size) noexcept(true) : m_size(size)
-    {
-    }
-
-    mutable_buffer obtain() noexcept(true)
-    {
-        std::unique_lock<std::mutex> lock(m_mutex);
-
-        boost::shared_array<uint8_t> array;
-        if (m_cache.empty())
-        {
-            array.reset(
-                new uint8_t[m_size],
-                std::bind(&buffer_factory::destroy, shared_from_this(), std::placeholders::_1)
-                );
-        }
-        else
-        {
-            array = m_cache.front();
-            m_cache.pop_front();
-        }
-
-        return mutable_buffer(array, m_size);
-    }
-
-private:
-
-    size_t m_size;
-    std::list<boost::shared_array<uint8_t>> m_cache;
-    std::mutex m_mutex;
-};
 
 }

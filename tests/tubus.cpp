@@ -182,10 +182,10 @@ public:
 
 BOOST_AUTO_TEST_SUITE(udp_channel);
 
+const uint64_t default_receive_buffer = tubus::udp::qos::receive_buffer_size();
+
 BOOST_AUTO_TEST_CASE(core)
 {
-    const uint64_t default_receive_buffer = tubus::udp::qos::receive_buffer_size();
-
     boost::asio::ip::udp::endpoint le(boost::asio::ip::make_address("127.0.0.1"), 3001);
     boost::asio::ip::udp::endpoint re(boost::asio::ip::make_address("127.0.0.1"), 3002);
 
@@ -223,9 +223,6 @@ BOOST_AUTO_TEST_CASE(core)
 
     BOOST_CHECK_EQUAL(left.readable(), sizeof(data));
     BOOST_CHECK_EQUAL(right.readable(), sizeof(data));
-
-    BOOST_CHECK_EQUAL(left.writable(), default_receive_buffer - sizeof(data));
-    BOOST_CHECK_EQUAL(right.writable(), default_receive_buffer - sizeof(data));
 
     std::memset(lb.data(), 0, lb.size());
     std::memset(rb.data(), 0, rb.size());
@@ -309,6 +306,9 @@ BOOST_AUTO_TEST_CASE(integrity)
     BOOST_REQUIRE_NO_THROW(left.async_write(source.read_next()).get());
     BOOST_REQUIRE_NO_THROW(left.async_write(source.read_next()).get());
     BOOST_REQUIRE_NO_THROW(left.async_write(source.read_next()).get());
+
+    BOOST_CHECK_EQUAL(left.writable(), default_receive_buffer - source.read());
+    BOOST_CHECK_EQUAL(right.readable(), source.read());
 
     tubus::mutable_buffer buffer(stream_source::chunk_size);
 
@@ -476,11 +476,11 @@ BOOST_AUTO_TEST_CASE(speed)
 BOOST_AUTO_TEST_SUITE_END();
 
 BOOST_AUTO_TEST_SUITE(tcp_channel);
+    
+const uint64_t default_receive_buffer = tubus::tcp::qos::receive_buffer_size();
 
 BOOST_AUTO_TEST_CASE(core)
 {
-    const uint64_t default_receive_buffer = tubus::tcp::qos::receive_buffer_size();
-
     boost::asio::ip::tcp::endpoint le(boost::asio::ip::make_address("127.0.0.1"), 3001);
     boost::asio::ip::tcp::endpoint re(boost::asio::ip::make_address("127.0.0.1"), 3002);
 

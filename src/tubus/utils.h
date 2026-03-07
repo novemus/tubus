@@ -16,7 +16,6 @@
 
 namespace tubus {
 
-mutable_buffer create_buffer(size_t size) noexcept(true);
 uint64_t make_inverter(uint64_t secret, uint64_t salt, bool dim) noexcept(true);
 
 namespace udp { namespace qos {

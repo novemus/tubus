@@ -247,29 +247,4 @@ BOOST_AUTO_TEST_CASE(const_buffer)
     BOOST_CHECK(!pb.unique());
 }
 
-BOOST_AUTO_TEST_CASE(buffer_factory)
-{
-    auto factory = std::make_shared<tubus::buffer_factory>(16384);
-
-    void* ptr1 = 0;
-    void* ptr2 = 0;
-    {
-        auto buf = factory->obtain();
-        ptr1 = buf.data();
-
-        BOOST_CHECK(ptr1);
-    }
-
-    auto buf = factory->obtain();
-    ptr2 = buf.data();
-
-    BOOST_CHECK_EQUAL(ptr1, ptr2);
-
-    auto buf1 = factory->obtain();
-    auto buf2 = factory->obtain();
-    auto buf3 = factory->obtain();
-
-    BOOST_CHECK(buf1.data() != buf2.data() && buf1.data() != buf3.data() && buf2.data() != buf3.data());
-}
-
 BOOST_AUTO_TEST_SUITE_END();

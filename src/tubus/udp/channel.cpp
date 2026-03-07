@@ -954,10 +954,9 @@ protected:
 
         boost::system::error_code err;
         auto size = m_socket.available(err);
-
         if (size > 0)
         {
-            auto buffer = tubus::create_buffer(size);
+            mutable_buffer buffer((size + 0xFF) & ~0xFF);
             m_socket.async_receive(buffer, [weak, buffer](const boost::system::error_code& error, size_t size)
             {
                 auto ptr = weak.lock();
@@ -1011,7 +1010,7 @@ protected:
 
         std::weak_ptr<transport> weak = shared_from_this();
 
-        packet pack(tubus::create_buffer(qos::max_packet_size()));
+        packet pack(m_buffer);
         m_connector.imbue(pack);
 
         auto status = m_connector.status();
@@ -1087,6 +1086,7 @@ public:
         : m_socket(io)
         , m_timer(io)
         , m_repeat(boost::posix_time::milliseconds(100))
+        , m_buffer(qos::max_packet_size())
         , m_connector(io, m_repeat)
         , m_istreamer(io, m_repeat)
         , m_ostreamer(io, m_repeat)
@@ -1258,6 +1258,7 @@ private:
     boost::asio::ip::udp::socket m_socket;
     boost::asio::deadline_timer m_timer;
     boost::posix_time::time_duration m_repeat;
+    mutable_buffer m_buffer;
     connector m_connector;
     istreamer m_istreamer;
     ostreamer m_ostreamer;
