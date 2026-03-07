@@ -241,18 +241,18 @@ public:
     {
         std::unique_lock<std::mutex> lock(m_mutex);
         boost::system::error_code ec;
+        m_timer.cancel(ec);
         m_acceptor.close(ec);
         m_stream->socket().close(ec);
-        m_timer.cancel(ec);
     }
 
     void shutdown(const callback& handler) noexcept(true) override
     {
         std::unique_lock<std::mutex> lock(m_mutex);
         boost::system::error_code ec;
+        m_timer.cancel(ec);
         m_acceptor.close(ec);
         m_stream->socket().shutdown(boost::asio::socket_base::shutdown_both, ec);
-        m_timer.cancel(ec);
         boost::asio::post(m_io, std::bind(handler, ec));
     }
 
