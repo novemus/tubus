@@ -125,7 +125,7 @@ public:
 
                     if (sign != proto::signature)
                     {
-                        callback(ec ? ec : boost::asio::error::invalid_argument, size);
+                        callback(ec ? ec : boost::asio::error::no_recovery, size);
                         return;
                     }
 

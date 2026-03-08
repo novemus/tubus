@@ -76,6 +76,29 @@ struct section : public mutable_buffer
         fill(header_size + sizeof(handle), data.size(), data.data());
     }
 
+    bool valid() noexcept(true)
+    {
+        switch (type())
+        {
+        case flag::ping:
+        case flag::edge:
+        case flag::ping | flag::echo:
+        case flag::edge | flag::echo:
+        case flag::move | flag::echo:
+            return size() >= header_size + sizeof(uint64_t) && length() == sizeof(uint64_t);
+        case flag::link:
+        case flag::tear:
+        case flag::link | flag::echo:
+        case flag::tear | flag::echo:
+            return size() >= header_size && length() == 0;
+        case flag::move:
+            return size() >= header_size + sizeof(uint64_t) && length() <= size() - header_size;
+        default:
+            break;
+        }
+        return false;
+    }
+
     uint16_t type() const noexcept(true)
     {
         return size() >= header_size ? ntohs(get<uint16_t>(0)) : 0;
@@ -88,12 +111,12 @@ struct section : public mutable_buffer
 
     mutable_buffer value() const noexcept(true)
     {
-        return slice(std::min(header_size, size()), length());
+        return slice(std::min(header_size, size()), std::min<size_t>(size() - header_size, length()));
     }
 
     void advance() noexcept(true)
     {
-        crop(std::min(header_size, size()) + length());
+        crop(std::min(header_size, size()) + std::min<size_t>(size() - header_size, length()));
     }
 };
 
@@ -113,7 +136,7 @@ struct numeral : public mutable_buffer
 
 struct snippet : public mutable_buffer
 {
-    static constexpr uint16_t handle_size = sizeof(uint64_t);
+    static constexpr size_t handle_size = sizeof(uint64_t);
 
     explicit snippet(const mutable_buffer& buf) noexcept(true) : mutable_buffer(buf)
     {
@@ -132,8 +155,8 @@ struct snippet : public mutable_buffer
 
 struct packet : public mutable_buffer
 {
-    static constexpr size_t packet_sign = 0x0909;
-    static constexpr size_t packet_version = 0x0102;
+    static constexpr uint16_t packet_sign = 0x0909;
+    static constexpr uint16_t packet_version = 0x0102;
     static constexpr size_t header_size = 16;
 
     packet(const mutable_buffer& buf) noexcept(true) : mutable_buffer(buf)

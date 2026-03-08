@@ -545,8 +545,8 @@ BOOST_AUTO_TEST_CASE(fall)
     boost::asio::ip::udp::endpoint le(boost::asio::ip::make_address("127.0.0.1"), 3001);
     boost::asio::ip::udp::endpoint re(boost::asio::ip::make_address("127.0.0.1"), 3002);
 
-    tubus_wrapper<tubus::udp_channel> left(le, re, 0);
-    tubus_wrapper<tubus::udp_channel> right(re, le, 0);
+    tubus_wrapper<tubus::udp_channel> left(le, re, 1234567890);
+    tubus_wrapper<tubus::udp_channel> right(re, le, 2143658709);
 
     BOOST_REQUIRE_NO_THROW(left.open());
     BOOST_REQUIRE_NO_THROW(right.open());
@@ -560,8 +560,8 @@ BOOST_AUTO_TEST_CASE(fall)
     auto la = left.async_accept();
     auto rc = right.async_connect();
 
-    BOOST_REQUIRE_NO_THROW(la.get());
-    BOOST_REQUIRE_NO_THROW(rc.get());
+    BOOST_REQUIRE_NO_THROW(BOOST_CHECK_EQUAL((int)la.wait_for(std::chrono::seconds(1)), (int)std::future_status::timeout));
+    BOOST_REQUIRE_NO_THROW(BOOST_CHECK_EQUAL((int)rc.wait_for(std::chrono::seconds(1)), (int)std::future_status::timeout));
 
     // send buffer overflow
     BOOST_REQUIRE_THROW(left.async_write(tubus::mutable_buffer(1024 * 1024 * 6)).get(), boost::system::system_error);
@@ -594,27 +594,32 @@ BOOST_AUTO_TEST_CASE(fall)
     boost::asio::ip::tcp::endpoint le(boost::asio::ip::make_address("127.0.0.1"), 3011);
     boost::asio::ip::tcp::endpoint re(boost::asio::ip::make_address("127.0.0.1"), 3012);
 
-    tubus_wrapper<tubus::tcp_channel> left(le, re, 0);
+    tubus_wrapper<tubus::tcp_channel> left(le, re, 1234567890);
     BOOST_REQUIRE_NO_THROW(left.open());
 
-    tubus_wrapper<tubus::tcp_channel> right(re, le, 0);
+    tubus_wrapper<tubus::tcp_channel> right(re, le, 2143658709);
     BOOST_REQUIRE_NO_THROW(right.open());
 
     auto rc = right.async_connect();
-    BOOST_CHECK_EQUAL((int)rc.wait_for(std::chrono::seconds(1)), (int)std::future_status::timeout);
-    BOOST_REQUIRE_THROW(right.async_shutdown().get(), boost::system::system_error);
-    BOOST_REQUIRE_NO_THROW(right.close());
-
     auto la = left.async_accept();
-    BOOST_CHECK_EQUAL((int)la.wait_for(std::chrono::seconds(1)), (int)std::future_status::timeout);
-    BOOST_REQUIRE_THROW(left.async_shutdown().get(), boost::system::system_error);
+
+    BOOST_REQUIRE_NO_THROW(la.get());
+    BOOST_REQUIRE_NO_THROW(rc.get());
+
+    auto rw = right.async_write(tubus::mutable_buffer(1));
+    auto lr = left.async_read(tubus::mutable_buffer(1));
+
+    BOOST_REQUIRE_NO_THROW(rw.get());
+    BOOST_REQUIRE_THROW(lr.get(), boost::system::system_error);
+
+    BOOST_REQUIRE_NO_THROW(left.async_shutdown().get());
     BOOST_REQUIRE_NO_THROW(left.close());
 
+    BOOST_REQUIRE_NO_THROW(right.async_shutdown().get());
+    BOOST_REQUIRE_NO_THROW(right.close());
+
     BOOST_REQUIRE_THROW(left.async_shutdown().get(), boost::system::system_error);
     BOOST_REQUIRE_THROW(right.async_shutdown().get(), boost::system::system_error);
-
-    BOOST_REQUIRE_THROW(left.async_read(tubus::mutable_buffer(1)).get(), boost::system::system_error);
-    BOOST_REQUIRE_THROW(right.async_write(tubus::mutable_buffer(1)).get(), boost::system::system_error);
 }
 
 BOOST_AUTO_TEST_CASE(integrity)

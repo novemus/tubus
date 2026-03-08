@@ -107,11 +107,9 @@ class transport : public tubus::udp_channel, public std::enable_shared_from_this
             m_seen = boost::posix_time::microsec_clock::universal_time();
 
             auto sect = pack.body();
-            auto type = sect.type();
-
-            while (type != 0)
+            while (sect.valid())
             {
-                switch (type)
+                switch (sect.type())
                 {
                     case section::link:
                     {
@@ -168,7 +166,7 @@ class transport : public tubus::udp_channel, public std::enable_shared_from_this
                         m_jobs.emplace(section::ping | section::echo, g_zero_time + boost::posix_time::microseconds(ping.value()));
                         break;
                     }
-                    case section::flag::ping | section::flag::echo:
+                    case section::flag::ping | section::echo:
                     {
                         numeral ping(sect.value());
 
@@ -183,7 +181,6 @@ class transport : public tubus::udp_channel, public std::enable_shared_from_this
                 }
 
                 sect.advance();
-                type = sect.type();
             }
         }
 
@@ -403,10 +400,9 @@ class transport : public tubus::udp_channel, public std::enable_shared_from_this
         void parse(const packet& pack) noexcept(true)
         {
             auto sect = pack.body();
-            auto type = sect.type();
-
-            while (type != 0)
+            while (sect.valid())
             {
+                auto type = sect.type();
                 if (type == (section::move | section::echo))
                 {
                     numeral curs(sect.value());
@@ -428,9 +424,7 @@ class transport : public tubus::udp_channel, public std::enable_shared_from_this
                     m_range = std::max(m_range, curs.value());
                     m_acks.emplace(m_range);
                 }
-
                 sect.advance();
-                type = sect.type();
             }
         }
 
@@ -653,14 +647,12 @@ class transport : public tubus::udp_channel, public std::enable_shared_from_this
         void parse(const packet& pack) noexcept(true)
         {
             auto sect = pack.body();
-            auto type = sect.type();
-
-            while (type != 0)
+            while (sect.valid())
             {
+                auto type = sect.type();
                 if (type == section::move)
                 {
                     snippet snip(sect.value());
-                    
                     if (m_buffer.map(snip.handle(), snip.fragment()))
                     {
                         m_acks.emplace(snip.handle());
@@ -669,7 +661,6 @@ class transport : public tubus::udp_channel, public std::enable_shared_from_this
                     {
                         if(on_error)
                             boost::asio::post(m_io, boost::bind(on_error, boost::asio::error::no_buffer_space));
-
                         break;
                     }
                 }
@@ -681,11 +672,8 @@ class transport : public tubus::udp_channel, public std::enable_shared_from_this
                         m_edge.time = boost::posix_time::max_date_time;
                     }
                 }
-
                 sect.advance();
-                type = sect.type();
             }
-
             transmit();
         }
 
@@ -950,44 +938,40 @@ protected:
             return;
         }
 
-        std::weak_ptr<transport> weak = shared_from_this();
-
         boost::system::error_code err;
         auto size = m_socket.available(err);
         if (size > 0)
         {
             mutable_buffer buffer((size + 0xFF) & ~0xFF);
-            m_socket.async_receive(buffer, [weak, buffer](const boost::system::error_code& error, size_t size)
+            m_socket.async_receive(buffer, [this, weak = weak_from_this(), buffer](const boost::system::error_code& error, size_t size)
             {
-                auto ptr = weak.lock();
-                if (ptr)
+                if (auto self = weak.lock())
                 {
                     if (error)
                     {
-                        ptr->mistake(error);
+                        mistake(error);
                     }
                     else
                     {
-                        ptr->feed(buffer.slice(0, size));
-                        ptr->consume();
+                        feed(buffer.slice(0, size));
+                        consume();
                     }
                 }
             });
         }
         else
         {
-            m_socket.async_wait(boost::asio::ip::udp::socket::wait_read, [weak](const boost::system::error_code& error)
+            m_socket.async_wait(boost::asio::ip::udp::socket::wait_read, [this, weak = weak_from_this()](const boost::system::error_code& error)
             {
-                auto ptr = weak.lock();
-                if (ptr)
+                if (auto self = weak.lock())
                 {
                     if (error)
                     {
-                        ptr->mistake(error);
+                        mistake(error);
                     }
                     else
                     {
-                        ptr->consume();
+                        consume();
                     }
                 }
             });
@@ -1008,8 +992,6 @@ protected:
             return;
         }
 
-        std::weak_ptr<transport> weak = shared_from_this();
-
         packet pack(m_buffer);
         m_connector.imbue(pack);
 
@@ -1025,17 +1007,16 @@ protected:
         if (pack.size() > packet::header_size)
         {
             auto buffer = m_secret == 0 ? pack : proto::packet::invert(m_secret, pack);
-            m_socket.async_send(buffer, [weak, buffer](const boost::system::error_code& error, size_t size)
+            m_socket.async_send(buffer, [this, weak = weak_from_this(), buffer](const boost::system::error_code& error, size_t size)
             {
-                auto ptr = weak.lock();
-                if (ptr)
+                if (auto self = weak.lock())
                 {
                     if (error)
-                        ptr->mistake(error);
+                        mistake(error);
                     else if (buffer.size() < size)
-                        ptr->mistake(boost::asio::error::message_size);
+                        mistake(boost::asio::error::message_size);
                     else
-                        ptr->produce();
+                        produce();
                 }
             });
         }
@@ -1046,15 +1027,14 @@ protected:
                 ? m_repeat : qos::ping_timeout();
 
             m_timer.expires_from_now(timeout);
-            m_timer.async_wait([weak](const boost::system::error_code& error)
+            m_timer.async_wait([this, weak = weak_from_this()](const boost::system::error_code& error)
             {
-                auto ptr = weak.lock();
-                if (ptr)
+                if (auto self = weak.lock())
                 {
                     if (error && error != boost::asio::error::operation_aborted)
-                        ptr->mistake(error);
+                        mistake(error);
                     else
-                        ptr->produce();
+                        produce();
                 }
             });
         }
@@ -1062,14 +1042,12 @@ protected:
 
     inline void run() noexcept(true)
     {
-        std::weak_ptr<transport> weak = shared_from_this();
-        boost::asio::post(m_socket.get_executor(), [weak]()
+        boost::asio::post(m_socket.get_executor(), [this, weak = weak_from_this()]()
         {
-            auto ptr = weak.lock();
-            if (ptr)
+            if (auto self = weak.lock())
             {
-                ptr->produce();
-                ptr->consume();
+                produce();
+                consume();
             }
         });
     }
@@ -1115,13 +1093,11 @@ public:
 
         m_socket.bind(local);
 
-        std::weak_ptr<transport> weak = shared_from_this();
-        auto on_error = [weak](const boost::system::error_code& error)
+        auto on_error = [this, weak = weak_from_this()](const boost::system::error_code& error)
         {
-            auto ptr = weak.lock();
-            if (ptr)
+            if (auto self = weak.lock())
             {
-                ptr->mistake(error);
+                mistake(error);
             }
         };
 
