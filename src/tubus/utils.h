@@ -14,6 +14,15 @@
 #include <boost/date_time/posix_time/posix_time_types.hpp>
 #include <boost/date_time/posix_time/posix_time_io.hpp>
 
+#ifdef _MSC_VER
+#include <WinSock2.h>
+#define htobe64 htonll
+#define be64toh ntohll
+#elif __APPLE__
+#define htobe64 htonll
+#define be64toh ntohll
+#endif
+
 namespace tubus {
 
 uint64_t make_inverter(uint64_t secret, uint64_t salt, bool dim) noexcept(true);

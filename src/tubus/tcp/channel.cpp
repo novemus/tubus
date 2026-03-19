@@ -53,7 +53,7 @@ protected:
                 m_rq.pop();
                 m_rb_size -= buffer.size();
                 
-                if (not m_rq.empty())
+                if (!m_rq.empty())
                 {
                     auto op = m_rq.front();
                     async_read(op.buffer, op.callback);
@@ -77,7 +77,7 @@ protected:
                 m_wq.pop();
                 m_wb_size -= buffer.size();
                 
-                if (not m_wq.empty())
+                if (!m_wq.empty())
                 {
                     auto op = m_wq.front();
                     async_write(op.buffer, op.callback);
@@ -118,7 +118,7 @@ protected:
                 }
 
                 std::unique_lock<std::mutex> lock(m_mutex);
-                if (not m_stream->socket().is_open())
+                if (!m_stream->socket().is_open())
                 {
                     handler(boost::asio::error::operation_aborted);
                     return;
@@ -129,7 +129,7 @@ protected:
                 {
                     if (auto ptr = weak.lock())
                     {
-                        if (not error)
+                        if (!error)
                             do_connect(remote, handler, deadline);
                         else
                             handler(error);
@@ -166,7 +166,7 @@ protected:
             m_timer.expires_at(deadline);
             m_timer.async_wait([this, weak = weak_from_this()](const boost::system::error_code& error)
             {
-                if (not error)
+                if (!error)
                 {
                     if (auto ptr = weak.lock())
                     {
@@ -190,7 +190,7 @@ protected:
 
                     if (remote.port() != 0 && remote.port() != actual.port())
                         return false;
-                    if (not remote.address().is_unspecified() && remote.address() != actual.address())
+                    if (!remote.address().is_unspecified() && remote.address() != actual.address())
                         return false;
 
                     return true;
@@ -270,7 +270,7 @@ public:
     {
         std::unique_lock<std::mutex> lock(m_mutex);
 
-        if (not m_stream->socket().is_open())
+        if (!m_stream->socket().is_open())
         {
             boost::asio::post(m_io, std::bind(handler, boost::asio::error::not_connected, 0));
             return;
@@ -293,7 +293,7 @@ public:
     {
         std::unique_lock<std::mutex> lock(m_mutex);
 
-        if (not m_stream->socket().is_open())
+        if (!m_stream->socket().is_open())
         {
             boost::asio::post(m_io, std::bind(handler, boost::asio::error::not_connected, 0));
             return;

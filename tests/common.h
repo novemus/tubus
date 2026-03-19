@@ -96,3 +96,5 @@ public:
         return m_written;
     }
 };
+
+unsigned short find_free_port();

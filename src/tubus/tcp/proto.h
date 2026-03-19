@@ -16,15 +16,6 @@
 #include <future>
 #include <boost/asio/ip/tcp.hpp>
 
-#ifdef _MSC_VER
-#include <WinSock2.h>
-#define htobe64 htonll
-#define be64toh ntohll
-#elif __APPLE__
-#define htobe64 htonll
-#define be64toh ntohll
-#endif
-
 namespace tubus { namespace tcp { namespace proto {
 
 static constexpr uint64_t head_size = sizeof(uint64_t) * 2;

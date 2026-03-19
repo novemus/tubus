@@ -23,7 +23,7 @@ namespace tubus {
 typedef std::function<void(const boost::system::error_code&)> callback;
 typedef std::function<void(const boost::system::error_code&, size_t)> io_callback;
 
-template<class proto> struct LIBTUBUS_EXPORT channel
+template<class proto> struct channel
 {
     typedef boost::asio::ip::basic_endpoint<proto> endpoint;
 
@@ -46,7 +46,7 @@ template<class proto> struct LIBTUBUS_EXPORT channel
 typedef channel<boost::asio::ip::udp> udp_channel;
 typedef channel<boost::asio::ip::tcp> tcp_channel;
 
-template<> std::shared_ptr<udp_channel> udp_channel::create(boost::asio::io_context& io, uint64_t secret) noexcept(true);
-template<> std::shared_ptr<tcp_channel> tcp_channel::create(boost::asio::io_context& io, uint64_t secret) noexcept(true);
+template<> LIBTUBUS_EXPORT std::shared_ptr<udp_channel> udp_channel::create(boost::asio::io_context& io, uint64_t secret) noexcept(true);
+template<> LIBTUBUS_EXPORT std::shared_ptr<tcp_channel> tcp_channel::create(boost::asio::io_context& io, uint64_t secret) noexcept(true);
 
 }

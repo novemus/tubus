@@ -49,6 +49,18 @@ return std::async([=, obj = object]() \
 
 executor g_reactor;
 
+unsigned short find_free_port()
+{
+    boost::asio::ip::tcp::acceptor acceptor(g_reactor.io);
+    
+    boost::asio::ip::tcp::endpoint ep(boost::asio::ip::address_v4::any(), 0);
+    acceptor.open(ep.protocol());
+    acceptor.bind(ep);
+    acceptor.listen();
+
+    return acceptor.local_endpoint().port();
+}
+
 template<class channel> class tubus_wrapper
 {
     typename channel::endpoint m_bind;
@@ -182,8 +194,8 @@ public:
 
 template<class channel> void make_core_test(size_t receive_buffer_size)
 {
-    typename channel::endpoint le(boost::asio::ip::make_address("127.0.0.1"), 3001);
-    typename channel::endpoint re(boost::asio::ip::make_address("127.0.0.1"), 3002);
+    typename channel::endpoint le(boost::asio::ip::make_address("127.0.0.1"), find_free_port());
+    typename channel::endpoint re(boost::asio::ip::make_address("127.0.0.1"), find_free_port());
 
     tubus_wrapper<channel> left(le, re, 1234567890);
     tubus_wrapper<channel> right(re, le, 1234567890);
@@ -238,8 +250,8 @@ template<class channel> void make_core_test(size_t receive_buffer_size)
 
 template<class channel> void make_speed_test()
 {
-    typename channel::endpoint le(boost::asio::ip::make_address("127.0.0.1"), 3021);
-    typename channel::endpoint re(boost::asio::ip::make_address("127.0.0.1"), 3022);
+    typename channel::endpoint le(boost::asio::ip::make_address("127.0.0.1"), find_free_port());
+    typename channel::endpoint re(boost::asio::ip::make_address("127.0.0.1"), find_free_port());
 
     boost::asio::io_context io;
     auto left = channel::create(g_reactor.io, 0);
@@ -348,8 +360,8 @@ template<class channel> void make_speed_test()
 
 template<class channel> void make_order_test()
 {
-    typename channel::endpoint le(boost::asio::ip::make_address("127.0.0.1"), 3021);
-    typename channel::endpoint re(boost::asio::ip::make_address("127.0.0.1"), 3022);
+    typename channel::endpoint le(boost::asio::ip::make_address("127.0.0.1"), find_free_port());
+    typename channel::endpoint re(boost::asio::ip::make_address("127.0.0.1"), find_free_port());
 
     boost::asio::io_context io;
     auto left = channel::create(g_reactor.io, 1234567890);
@@ -449,8 +461,8 @@ BOOST_AUTO_TEST_CASE(core)
 
 BOOST_AUTO_TEST_CASE(connectivity)
 {
-    boost::asio::ip::udp::endpoint le(boost::asio::ip::make_address("127.0.0.1"), 3001);
-    boost::asio::ip::udp::endpoint re(boost::asio::ip::make_address("127.0.0.1"), 3002);
+    boost::asio::ip::udp::endpoint le(boost::asio::ip::make_address("127.0.0.1"), find_free_port());
+    boost::asio::ip::udp::endpoint re(boost::asio::ip::make_address("127.0.0.1"), find_free_port());
 
     tubus_wrapper<tubus::udp_channel> left(le, re, 1234567890);
     BOOST_REQUIRE_NO_THROW(left.open());
@@ -487,9 +499,9 @@ BOOST_AUTO_TEST_CASE(connectivity)
 
 BOOST_AUTO_TEST_CASE(integrity)
 {
-    boost::asio::ip::udp::endpoint pe(boost::asio::ip::make_address("127.0.0.1"), 3000);
-    boost::asio::ip::udp::endpoint le(boost::asio::ip::make_address("127.0.0.1"), 3001);
-    boost::asio::ip::udp::endpoint re(boost::asio::ip::make_address("127.0.0.1"), 3002);
+    boost::asio::ip::udp::endpoint pe(boost::asio::ip::make_address("127.0.0.1"), find_free_port());
+    boost::asio::ip::udp::endpoint le(boost::asio::ip::make_address("127.0.0.1"), find_free_port());
+    boost::asio::ip::udp::endpoint re(boost::asio::ip::make_address("127.0.0.1"), find_free_port());
 
     auto router = std::make_shared<udp_router>(pe, le, re);
     router->start();
@@ -542,8 +554,8 @@ BOOST_AUTO_TEST_CASE(integrity)
 
 BOOST_AUTO_TEST_CASE(fall)
 {
-    boost::asio::ip::udp::endpoint le(boost::asio::ip::make_address("127.0.0.1"), 3001);
-    boost::asio::ip::udp::endpoint re(boost::asio::ip::make_address("127.0.0.1"), 3002);
+    boost::asio::ip::udp::endpoint le(boost::asio::ip::make_address("127.0.0.1"), find_free_port());
+    boost::asio::ip::udp::endpoint re(boost::asio::ip::make_address("127.0.0.1"), find_free_port());
 
     tubus_wrapper<tubus::udp_channel> left(le, re, 1234567890);
     tubus_wrapper<tubus::udp_channel> right(re, le, 2143658709);
@@ -591,8 +603,8 @@ BOOST_AUTO_TEST_CASE(core)
 
 BOOST_AUTO_TEST_CASE(fall)
 {
-    boost::asio::ip::tcp::endpoint le(boost::asio::ip::make_address("127.0.0.1"), 3011);
-    boost::asio::ip::tcp::endpoint re(boost::asio::ip::make_address("127.0.0.1"), 3012);
+    boost::asio::ip::tcp::endpoint le(boost::asio::ip::make_address("127.0.0.1"), find_free_port());
+    boost::asio::ip::tcp::endpoint re(boost::asio::ip::make_address("127.0.0.1"), find_free_port());
 
     tubus_wrapper<tubus::tcp_channel> left(le, re, 1234567890);
     BOOST_REQUIRE_NO_THROW(left.open());
@@ -624,8 +636,8 @@ BOOST_AUTO_TEST_CASE(fall)
 
 BOOST_AUTO_TEST_CASE(integrity)
 {
-    boost::asio::ip::tcp::endpoint le(boost::asio::ip::make_address("127.0.0.1"), 3001);
-    boost::asio::ip::tcp::endpoint re(boost::asio::ip::make_address("127.0.0.1"), 3002);
+    boost::asio::ip::tcp::endpoint le(boost::asio::ip::make_address("127.0.0.1"), find_free_port());
+    boost::asio::ip::tcp::endpoint re(boost::asio::ip::make_address("127.0.0.1"), find_free_port());
 
     tubus_wrapper<tubus::tcp_channel> left(le, re, 1234567890UL);
     tubus_wrapper<tubus::tcp_channel> right(re, le, 1234567890UL);

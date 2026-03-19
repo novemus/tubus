@@ -23,8 +23,8 @@ BOOST_AUTO_TEST_SUITE(udp_socket)
 
 BOOST_AUTO_TEST_CASE(core)
 {
-    tubus::udp::endpoint le(boost::asio::ip::make_address("127.0.0.1"), 3001);
-    tubus::udp::endpoint re(boost::asio::ip::make_address("127.0.0.1"), 3002);
+    tubus::udp::endpoint le(boost::asio::ip::make_address("127.0.0.1"), find_free_port());
+    tubus::udp::endpoint re(boost::asio::ip::make_address("127.0.0.1"), find_free_port());
 
     tubus::udp::socket left(g_reactor.io, 1234567890);
     tubus::udp::socket right(g_reactor.io, 1234567890);
@@ -111,8 +111,8 @@ BOOST_AUTO_TEST_CASE(core)
 
 BOOST_AUTO_TEST_CASE(ssl)
 {
-    tubus::udp::endpoint se(boost::asio::ip::make_address("127.0.0.1"), 3001);
-    tubus::udp::endpoint ce(boost::asio::ip::make_address("127.0.0.1"), 3002);
+    tubus::udp::endpoint se(boost::asio::ip::make_address("127.0.0.1"), find_free_port());
+    tubus::udp::endpoint ce(boost::asio::ip::make_address("127.0.0.1"), find_free_port());
 
     boost::asio::ssl::context srv(boost::asio::ssl::context::sslv23);
     srv.set_options(boost::asio::ssl::context::default_workarounds | boost::asio::ssl::context::sslv23_server);
@@ -223,8 +223,8 @@ BOOST_AUTO_TEST_SUITE(tcp_socket)
 
 BOOST_AUTO_TEST_CASE(core)
 {
-    tubus::tcp::endpoint le(boost::asio::ip::make_address("127.0.0.1"), 3001);
-    tubus::tcp::endpoint re(boost::asio::ip::make_address("127.0.0.1"), 3002);
+    tubus::tcp::endpoint le(boost::asio::ip::make_address("127.0.0.1"), find_free_port());
+    tubus::tcp::endpoint re(boost::asio::ip::make_address("127.0.0.1"), find_free_port());
 
     tubus::tcp::socket left(g_reactor.io, 123456789);
     tubus::tcp::socket right(g_reactor.io, 123456789);
@@ -302,8 +302,8 @@ BOOST_AUTO_TEST_CASE(core)
 
 BOOST_AUTO_TEST_CASE(ssl)
 {
-    tubus::tcp::endpoint se(boost::asio::ip::make_address("127.0.0.1"), 3001);
-    tubus::tcp::endpoint ce(boost::asio::ip::make_address("127.0.0.1"), 3002);
+    tubus::tcp::endpoint se(boost::asio::ip::make_address("127.0.0.1"), find_free_port());
+    tubus::tcp::endpoint ce(boost::asio::ip::make_address("127.0.0.1"), find_free_port());
 
     boost::asio::ssl::context srv(boost::asio::ssl::context::sslv23);
     srv.set_options(boost::asio::ssl::context::default_workarounds | boost::asio::ssl::context::sslv23_server);
