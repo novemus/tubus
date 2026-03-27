@@ -32,8 +32,6 @@ const boost::posix_time::ptime g_zero_time(boost::gregorian::date(1970, 1, 1));
 
 class transport : public tubus::udp_channel, public std::enable_shared_from_this<transport>
 {
-    static constexpr size_t SOCKET_BUFFER_SIZE = 1048576;
-
     enum state 
     {
         neither,
@@ -1085,12 +1083,7 @@ public:
             boost::asio::detail::throw_error(boost::asio::error::no_permission, "open");
 
         m_socket.open(local.protocol());
-
-        m_socket.non_blocking(true);
-        m_socket.set_option(boost::asio::socket_base::send_buffer_size(SOCKET_BUFFER_SIZE));
-        m_socket.set_option(boost::asio::socket_base::receive_buffer_size(SOCKET_BUFFER_SIZE));
         m_socket.set_option(boost::asio::socket_base::reuse_address(true));
-
         m_socket.bind(local);
 
         auto on_error = [this, weak = weak_from_this()](const boost::system::error_code& error)

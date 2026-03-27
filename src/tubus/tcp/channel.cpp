@@ -22,8 +22,6 @@ namespace tubus { namespace tcp {
 
 class transport : public tubus::tcp_channel, public std::enable_shared_from_this<transport>
 {
-    static constexpr size_t SOCKET_BUFFER_SIZE = 1048576;
-
     template<class io_buffer>
     struct io_task
     {
@@ -101,9 +99,6 @@ protected:
         }
 
         m_stream->socket().open(m_bind.protocol());
-        m_stream->socket().non_blocking(true);
-        m_stream->socket().set_option(boost::asio::socket_base::send_buffer_size(SOCKET_BUFFER_SIZE));
-        m_stream->socket().set_option(boost::asio::socket_base::receive_buffer_size(SOCKET_BUFFER_SIZE));
         m_stream->socket().set_option(boost::asio::socket_base::reuse_address(true));
         m_stream->socket().bind(m_bind);
 
@@ -174,9 +169,6 @@ protected:
         else
         {
             m_acceptor.open(m_bind.protocol());
-            m_acceptor.non_blocking(true);
-            m_acceptor.set_option(boost::asio::socket_base::send_buffer_size(SOCKET_BUFFER_SIZE));
-            m_acceptor.set_option(boost::asio::socket_base::receive_buffer_size(SOCKET_BUFFER_SIZE));
             m_acceptor.set_option(boost::asio::socket_base::reuse_address(true));
             m_acceptor.bind(m_bind);
             m_acceptor.listen();
