@@ -451,7 +451,7 @@ class transport : public tubus::udp_channel, public std::enable_shared_from_this
                 }
 
                 iter->second.time = now + m_repeat;
-                
+
                 sect.snippet(iter->first, iter->second.data);
                 sect.advance();
             }

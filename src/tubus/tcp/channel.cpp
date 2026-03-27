@@ -107,20 +107,38 @@ protected:
         m_stream->socket().set_option(boost::asio::socket_base::reuse_address(true));
         m_stream->socket().bind(m_bind);
 
+        m_timer.expires_at(deadline);
+        m_timer.async_wait([this, weak = weak_from_this()](const boost::system::error_code& error)
+        {
+            if (error)
+                return;
+
+            if (auto ptr = weak.lock())
+            {
+                std::unique_lock<std::mutex> lock(m_mutex);
+                boost::system::error_code ec;
+                m_stream->socket().close(ec);
+            }
+        });
+
         m_stream->socket().async_connect(remote, [this, weak = weak_from_this(), remote, handler, deadline](const boost::system::error_code& error)
         {
             if (auto ptr = weak.lock())
             {
+                std::unique_lock<std::mutex> lock(m_mutex);
+
+                boost::system::error_code ec;
+                m_timer.cancel(ec);
+
                 if (error != boost::asio::error::connection_refused || boost::posix_time::microsec_clock::universal_time() > deadline)
                 {
-                    handler(error);
+                    boost::asio::post(m_io, std::bind(handler, error));
                     return;
                 }
 
-                std::unique_lock<std::mutex> lock(m_mutex);
                 if (!m_stream->socket().is_open())
                 {
-                    handler(boost::asio::error::operation_aborted);
+                    boost::asio::post(m_io, std::bind(handler, boost::asio::error::operation_aborted));
                     return;
                 }
 
@@ -166,15 +184,14 @@ protected:
             m_timer.expires_at(deadline);
             m_timer.async_wait([this, weak = weak_from_this()](const boost::system::error_code& error)
             {
-                if (!error)
+                if (error)
+                    return;
+
+                if (auto ptr = weak.lock())
                 {
-                    if (auto ptr = weak.lock())
-                    {
-                        std::unique_lock<std::mutex> lock(m_mutex);
-                        boost::system::error_code ec;
-                        m_acceptor.close(ec);
-                        return;
-                    }
+                    std::unique_lock<std::mutex> lock(m_mutex);
+                    boost::system::error_code ec;
+                    m_acceptor.close(ec);
                 }
             });
         }
@@ -198,12 +215,13 @@ protected:
 
                 if (error || expected())
                 {
-                    handler(error);
-
                     std::unique_lock<std::mutex> lock(m_mutex);
+
                     boost::system::error_code ec;
                     m_timer.cancel(ec);
                     m_acceptor.close(ec);
+
+                    boost::asio::post(m_io, std::bind(handler, error));
                     return;
                 }
 

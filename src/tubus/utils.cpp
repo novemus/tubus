@@ -115,7 +115,7 @@ boost::posix_time::time_duration connect_timeout() noexcept(true)
 
 boost::posix_time::time_duration accept_timeout() noexcept(true)
 {
-    static boost::posix_time::seconds s_timeout(getenv("TUBUS_TCP_ACCEPT_TIMEOUT", 10000l));
+    static boost::posix_time::milliseconds s_timeout(getenv("TUBUS_TCP_ACCEPT_TIMEOUT", 10000l));
     return s_timeout;
 }
 

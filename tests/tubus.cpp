@@ -608,8 +608,15 @@ BOOST_AUTO_TEST_CASE(fall)
 
     tubus_wrapper<tubus::tcp_channel> left(le, re, 1234567890);
     BOOST_REQUIRE_NO_THROW(left.open());
+    BOOST_REQUIRE_THROW(left.async_connect().get(), boost::system::system_error);
+    BOOST_REQUIRE_NO_THROW(left.close());
 
     tubus_wrapper<tubus::tcp_channel> right(re, le, 2143658709);
+    BOOST_REQUIRE_NO_THROW(right.open());
+    BOOST_REQUIRE_THROW(right.async_accept().get(), boost::system::system_error);
+    BOOST_REQUIRE_NO_THROW(right.close());
+
+    BOOST_REQUIRE_NO_THROW(left.open());
     BOOST_REQUIRE_NO_THROW(right.open());
 
     auto rc = right.async_connect();
