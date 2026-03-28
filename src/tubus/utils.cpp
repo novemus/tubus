@@ -79,10 +79,10 @@ boost::posix_time::time_duration accept_timeout() noexcept(true)
     return s_timeout;
 }
 
-size_t snippet_flight() noexcept(true)
+size_t snippet_swarm() noexcept(true)
 {
-    static size_t s_flight(getenv("TUBUS_UDP_SNIPPET_FLIGHT", 1024ul));
-    return s_flight;
+    static size_t s_swarm(getenv("TUBUS_UDP_SNIPPET_SWARM", 1024ul));
+    return s_swarm;
 }
 
 size_t move_attempts() noexcept(true)

@@ -354,6 +354,31 @@ template<class channel> void make_speed_test()
         "traffic: " << float(TRAFFIC) / MB  << " MB\ntime: " << time  << "\nspeed: " << float(TRAFFIC) / time.total_milliseconds() * 1000 / MB * 8 << " Mb/s"
         );
 
+    std::promise<void> rs;
+    right->shutdown([&](const boost::system::error_code& err)
+    {
+        if (err)
+        {
+            rp.set_exception(std::make_exception_ptr(boost::system::system_error(err)));
+            return;
+        }
+        rs.set_value();
+    });
+
+    std::promise<void> ls;
+    left->shutdown([&](const boost::system::error_code& err)
+    {
+        if (err)
+        {
+            ls.set_exception(std::make_exception_ptr(boost::system::system_error(err)));
+            return;
+        }
+        ls.set_value();
+    });
+
+    BOOST_REQUIRE_NO_THROW(rs.get_future().get());
+    BOOST_REQUIRE_NO_THROW(ls.get_future().get());
+
     right->close();
     left->close();
 }

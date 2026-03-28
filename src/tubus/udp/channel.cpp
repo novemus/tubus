@@ -454,7 +454,7 @@ class transport : public tubus::udp_channel, public std::enable_shared_from_this
                 sect.advance();
             }
 
-            while (m_buffer.available() && m_moves.size() < qos::snippet_flight())
+            while (m_buffer.available() && m_moves.size() < qos::snippet_swarm())
             {
                 uint64_t limit = m_range - m_buffer.head();
 
@@ -1084,6 +1084,26 @@ public:
 
         m_socket.open(local.protocol());
         m_socket.set_option(boost::asio::socket_base::reuse_address(true));
+
+#ifndef WIN32
+        size_t buffer_size = static_cast<size_t>((qos::max_packet_size() + 28) * qos::snippet_swarm() * 1.2);
+        buffer_size = std::max<size_t>(buffer_size, 16384); 
+
+        boost::system::error_code ec;
+        boost::asio::socket_base::receive_buffer_size recv_opt;
+        m_socket.get_option(recv_opt, ec);
+
+        if (ec || buffer_size > static_cast<size_t>(recv_opt.value()))
+        {
+            if (m_socket.set_option(boost::asio::socket_base::receive_buffer_size(static_cast<int>(buffer_size)), ec)
+                || m_socket.set_option(boost::asio::socket_base::send_buffer_size(static_cast<int>(buffer_size)), ec))
+            {
+                m_socket.close();
+                m_socket.open(local.protocol());
+                m_socket.set_option(boost::asio::socket_base::reuse_address(true));
+            }
+        }
+#endif
         m_socket.bind(local);
 
         auto on_error = [this, weak = weak_from_this()](const boost::system::error_code& error)

@@ -100,6 +100,7 @@ protected:
 
         m_stream->socket().open(m_bind.protocol());
         m_stream->socket().set_option(boost::asio::socket_base::reuse_address(true));
+        m_stream->socket().set_option(boost::asio::socket_base::keep_alive(true));
         m_stream->socket().bind(m_bind);
 
         m_timer.expires_at(deadline);
@@ -170,6 +171,7 @@ protected:
         {
             m_acceptor.open(m_bind.protocol());
             m_acceptor.set_option(boost::asio::socket_base::reuse_address(true));
+            m_acceptor.set_option(boost::asio::socket_base::keep_alive(true));
             m_acceptor.bind(m_bind);
             m_acceptor.listen();
 

@@ -35,7 +35,7 @@ namespace udp { namespace qos {
     boost::posix_time::time_duration shutdown_timeout() noexcept(true);
     boost::posix_time::time_duration connect_timeout() noexcept(true);
     boost::posix_time::time_duration accept_timeout() noexcept(true);
-    size_t snippet_flight() noexcept(true);
+    size_t snippet_swarm() noexcept(true);
     size_t move_attempts() noexcept(true);
     size_t receive_buffer_size() noexcept(true);
     size_t send_buffer_size() noexcept(true);

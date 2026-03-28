@@ -19,9 +19,9 @@ const boost::system::error_code NONE_ERROR;
 
 BOOST_AUTO_TEST_CASE(core)
 {
-    tubus::udp::endpoint se(boost::asio::ip::make_address("127.0.0.1"), 3000);
-    tubus::udp::endpoint c1(boost::asio::ip::make_address("127.0.0.1"), 3001);
-    tubus::udp::endpoint c2(boost::asio::ip::make_address("127.0.0.1"), 3002);
+    tubus::udp::endpoint se(boost::asio::ip::make_address("127.0.0.1"), find_free_port());
+    tubus::udp::endpoint c1(boost::asio::ip::make_address("127.0.0.1"), find_free_port());
+    tubus::udp::endpoint c2(boost::asio::ip::make_address("127.0.0.1"), find_free_port());
 
     tubus::udp::acceptor server(g_reactor.io);
     BOOST_REQUIRE_NO_THROW(server.open(se));
