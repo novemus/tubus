@@ -109,13 +109,19 @@ size_t send_buffer_size() noexcept(true)
 
 boost::posix_time::time_duration connect_timeout() noexcept(true)
 {
-    static boost::posix_time::milliseconds s_timeout(getenv("TUBUS_TCP_CONNECT_TIMEOUT", 10000l));
+    static boost::posix_time::milliseconds s_timeout(getenv("TUBUS_TCP_CONNECT_TIMEOUT", 15000l));
     return s_timeout;
 }
 
 boost::posix_time::time_duration accept_timeout() noexcept(true)
 {
-    static boost::posix_time::milliseconds s_timeout(getenv("TUBUS_TCP_ACCEPT_TIMEOUT", 10000l));
+    static boost::posix_time::milliseconds s_timeout(getenv("TUBUS_TCP_ACCEPT_TIMEOUT", 15000l));
+    return s_timeout;
+}
+
+boost::posix_time::time_duration keepalive_timeout() noexcept(true)
+{
+    static boost::posix_time::milliseconds s_timeout(getenv("TUBUS_TCP_KEEPALIVE_TIMEOUT", 30000l));
     return s_timeout;
 }
 

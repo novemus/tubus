@@ -44,6 +44,7 @@ namespace udp { namespace qos {
 namespace tcp { namespace qos {
     boost::posix_time::time_duration connect_timeout() noexcept(true);
     boost::posix_time::time_duration accept_timeout() noexcept(true);
+    boost::posix_time::time_duration keepalive_timeout() noexcept(true);
     size_t receive_buffer_size() noexcept(true);
     size_t send_buffer_size() noexcept(true);
 }}

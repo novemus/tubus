@@ -16,6 +16,12 @@
 #include <future>
 #include <boost/asio/ip/tcp.hpp>
 
+#ifdef _WIN32
+#include <mstcpip.h>
+#else
+#include <netinet/tcp.h>
+#endif
+
 namespace tubus { namespace tcp { namespace proto {
 
 static constexpr uint64_t head_size = sizeof(uint64_t) * 2;
@@ -57,6 +63,8 @@ public:
     {
         if (m_secret != 0 && m_ostate.salt == 0)
         {
+            set_keepalive_time();
+
             mutable_buffer buffer(chunk.size() + proto::head_size);
             buffer.fill(proto::head_size, chunk.size(), chunk.data());
             write_head(buffer.data(), proto::signature);
@@ -93,6 +101,8 @@ public:
     {
         if (m_secret != 0 && m_istate.salt == 0)
         {
+            set_keepalive_time();
+
             mutable_buffer header(proto::head_size);
 
             std::vector<boost::asio::mutable_buffer> buffers;
@@ -185,6 +195,29 @@ public:
     }
 
 private:
+
+    void set_keepalive_time()
+    {
+        boost::asio::ip::tcp::socket::keep_alive keep;
+        boost::system::error_code ec;
+        m_socket.get_option(keep, ec);
+
+        if (!m_socket.get_option(keep, ec) && keep.value()) 
+        {
+#ifdef _WIN32
+            uint32_t timeout = static_cast<uint32_t>(qos::keepalive_timeout().total_milliseconds());
+            tcp_keepalive keepalive;
+            keepalive.onoff = 1;
+            keepalive.keepalivetime = timeout;
+            keepalive.keepaliveinterval = std::max(1000U, timeout);
+            DWORD returned = 0;
+            WSAIoctl(m_socket.native_handle(), SIO_KEEPALIVE_VALS, &keepalive, sizeof(keepalive), NULL, 0, &returned, NULL, NULL);
+#else
+            int32_t timeout = static_cast<int32_t>(qos::keepalive_timeout().total_seconds());
+            setsockopt(m_socket.native_handle(), IPPROTO_TCP, TCP_KEEPIDLE, &timeout, sizeof(timeout));
+#endif
+        }
+    }
 
     void write_head(void* data, uint64_t sign)
     {
