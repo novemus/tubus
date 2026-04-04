@@ -98,10 +98,18 @@ protected:
             m_stream->socket().close(ec);
         }
 
-        m_stream->socket().open(m_bind.protocol());
-        m_stream->socket().set_option(boost::asio::socket_base::reuse_address(true));
-        m_stream->socket().set_option(boost::asio::socket_base::keep_alive(true));
-        m_stream->socket().bind(m_bind);
+        try
+        {
+            m_stream->socket().open(m_bind.protocol());
+            m_stream->socket().set_option(boost::asio::socket_base::reuse_address(true));
+            m_stream->socket().set_option(boost::asio::socket_base::keep_alive(true));
+            m_stream->socket().bind(m_bind);
+        }
+        catch(const boost::system::system_error& ex)
+        {
+            boost::asio::post(m_io, std::bind(handler, ex.code()));
+            return;
+        }
 
         m_timer.expires_at(deadline);
         m_timer.async_wait([this, weak = weak_from_this()](const boost::system::error_code& error)
@@ -169,11 +177,19 @@ protected:
         }
         else
         {
-            m_acceptor.open(m_bind.protocol());
-            m_acceptor.set_option(boost::asio::socket_base::reuse_address(true));
-            m_acceptor.set_option(boost::asio::socket_base::keep_alive(true));
-            m_acceptor.bind(m_bind);
-            m_acceptor.listen();
+            try
+            {
+                m_acceptor.open(m_bind.protocol());
+                m_acceptor.set_option(boost::asio::socket_base::reuse_address(true));
+                m_acceptor.set_option(boost::asio::socket_base::keep_alive(true));
+                m_acceptor.bind(m_bind);
+                m_acceptor.listen();
+            }
+            catch(const boost::system::system_error& ex)
+            {
+                boost::asio::post(m_io, std::bind(handler, ex.code()));
+                return;
+            }
 
             m_timer.expires_at(deadline);
             m_timer.async_wait([this, weak = weak_from_this()](const boost::system::error_code& error)
