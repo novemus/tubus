@@ -2,7 +2,7 @@
 
 ## 1.3.0 (Feb 24, 2026)
 
-- Implementation on TCP.
+- TCP-based implementation.
 
 ## 1.2.5 (Feb 10, 2026)
 

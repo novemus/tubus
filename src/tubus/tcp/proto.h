@@ -205,16 +205,17 @@ private:
         if (!m_socket.get_option(keep, ec) && keep.value()) 
         {
 #ifdef _WIN32
-            uint32_t timeout = static_cast<uint32_t>(qos::keepalive_timeout().total_milliseconds());
             tcp_keepalive keepalive;
             keepalive.onoff = 1;
-            keepalive.keepalivetime = timeout;
-            keepalive.keepaliveinterval = std::max(1000U, timeout);
+            keepalive.keepalivetime = std::max(5000UL, static_cast<unsigned long>(qos::keepalive_timeout().total_milliseconds()));
+            keepalive.keepaliveinterval = 1000UL;
             DWORD returned = 0;
             WSAIoctl(m_socket.native_handle(), SIO_KEEPALIVE_VALS, &keepalive, sizeof(keepalive), NULL, 0, &returned, NULL, NULL);
 #else
-            int32_t timeout = static_cast<int32_t>(qos::keepalive_timeout().total_seconds());
+            int32_t timeout = std::max(5, static_cast<int32_t>(qos::keepalive_timeout().total_seconds()));
             setsockopt(m_socket.native_handle(), IPPROTO_TCP, TCP_KEEPIDLE, &timeout, sizeof(timeout));
+            timeout = 1;
+            setsockopt(m_socket.native_handle(), IPPROTO_TCP, TCP_KEEPINTVL, &timeout, sizeof(timeout));
 #endif
         }
     }
