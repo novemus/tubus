@@ -1257,7 +1257,7 @@ private:
 
 }
 
-template<> std::shared_ptr<udp_channel> udp_channel::create(boost::asio::io_context& io, uint64_t secret) noexcept(true)
+std::shared_ptr<udp_channel> udp_channel::create(boost::asio::io_context& io, uint64_t secret) noexcept(true)
 {
     return std::make_shared<udp::transport>(io, secret);
 }

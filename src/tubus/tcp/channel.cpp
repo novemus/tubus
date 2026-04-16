@@ -317,7 +317,7 @@ public:
             async_read(buffer, handler);
     }
 
-    void write(const const_buffer& buffer, const io_callback& handler) noexcept(true)
+    void write(const const_buffer& buffer, const io_callback& handler) noexcept(true) override
     {
         std::unique_lock<std::mutex> lock(m_mutex);
 
@@ -340,13 +340,13 @@ public:
             async_write(buffer, handler);
     }
 
-    size_t writable() const noexcept(true)
+    size_t writable() const noexcept(true) override
     {
         std::unique_lock<std::mutex> lock(m_mutex);
         return qos::send_buffer_size() - m_wb_size;
     }
 
-    size_t readable() const noexcept(true)
+    size_t readable() const noexcept(true) override
     {
         std::unique_lock<std::mutex> lock(m_mutex);
         boost::system::error_code ec;
@@ -381,7 +381,7 @@ private:
 
 }
 
-template<> std::shared_ptr<tcp_channel> tcp_channel::create(boost::asio::io_context& io, uint64_t secret) noexcept(true)
+std::shared_ptr<tcp_channel> tcp_channel::create(boost::asio::io_context& io, uint64_t secret) noexcept(true)
 {
     return std::make_shared<tcp::transport>(io, secret);
 }

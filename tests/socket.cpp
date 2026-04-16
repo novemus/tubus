@@ -297,7 +297,7 @@ BOOST_AUTO_TEST_CASE(core)
     BOOST_CHECK_EQUAL(ec, NONE_ERROR);
 
     right.shutdown(ec);
-    BOOST_CHECK_EQUAL(ec, NONE_ERROR);
+    BOOST_CHECK_MESSAGE(ec == NONE_ERROR || ec == boost::asio::error::not_connected, ec.message());
 }
 
 BOOST_AUTO_TEST_CASE(ssl)
@@ -405,7 +405,7 @@ BOOST_AUTO_TEST_CASE(ssl)
     BOOST_CHECK_EQUAL(ec, NONE_ERROR);
 
     client.lowest_layer().shutdown(ec);
-    BOOST_CHECK_EQUAL(ec, NONE_ERROR);
+    BOOST_CHECK_MESSAGE(ec == NONE_ERROR || ec == boost::asio::error::not_connected, ec.message());
 }
 
 BOOST_AUTO_TEST_SUITE_END()

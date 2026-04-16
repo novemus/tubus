@@ -39,14 +39,16 @@ template<class proto> struct channel
     virtual size_t readable() const noexcept(true) = 0;
     virtual endpoint host() const noexcept(false) = 0;
     virtual endpoint peer() const noexcept(false) = 0;
-
-    static std::shared_ptr<channel<proto>> create(boost::asio::io_context& io, uint64_t secret = 0) noexcept(true);
 };
 
-typedef channel<boost::asio::ip::udp> udp_channel;
-typedef channel<boost::asio::ip::tcp> tcp_channel;
+struct udp_channel : public channel<boost::asio::ip::udp>
+{
+    static LIBTUBUS_EXPORT std::shared_ptr<udp_channel> create(boost::asio::io_context& io, uint64_t secret = 0) noexcept(true);
+};
 
-template<> LIBTUBUS_EXPORT std::shared_ptr<udp_channel> udp_channel::create(boost::asio::io_context& io, uint64_t secret) noexcept(true);
-template<> LIBTUBUS_EXPORT std::shared_ptr<tcp_channel> tcp_channel::create(boost::asio::io_context& io, uint64_t secret) noexcept(true);
+struct tcp_channel : public channel<boost::asio::ip::tcp>
+{
+    static LIBTUBUS_EXPORT std::shared_ptr<tcp_channel> create(boost::asio::io_context& io, uint64_t secret = 0) noexcept(true);
+};
 
 }

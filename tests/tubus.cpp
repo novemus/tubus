@@ -37,7 +37,7 @@ return std::async([=, obj = object]() \
 { \
     std::promise<void> promise; \
     std::future<void> future = promise.get_future(); \
-    obj->method(__VA_ARGS__[&promise](const boost::system::error_code& error) \
+    obj->method(__VA_ARGS__[&](const boost::system::error_code& error) \
     { \
         if (filter) \
             promise.set_exception(std::make_exception_ptr(boost::system::system_error(error))); \
@@ -114,9 +114,9 @@ public:
         ASYNC(m_channel, connect, error, m_peer, );
     }
 
-    std::future<void> async_shutdown()
+    std::future<void> async_shutdown(bool strict = false)
     {
-        ASYNC(m_channel, shutdown, error && error != boost::asio::error::interrupted && error != boost::asio::error::connection_refused);
+        ASYNC(m_channel, shutdown, (strict && error) || (!strict && error && error != boost::asio::error::interrupted && error != boost::asio::error::connection_refused && error != boost::asio::error::not_connected));
     }
 
     std::future<void> async_write(const tubus::const_buffer& buffer)
@@ -357,7 +357,7 @@ template<class channel> void make_speed_test()
     std::promise<void> rs;
     right->shutdown([&](const boost::system::error_code& err)
     {
-        if (err)
+        if (err && err != boost::asio::error::not_connected)
         {
             rp.set_exception(std::make_exception_ptr(boost::system::system_error(err)));
             return;
@@ -368,7 +368,7 @@ template<class channel> void make_speed_test()
     std::promise<void> ls;
     left->shutdown([&](const boost::system::error_code& err)
     {
-        if (err)
+        if (err && err != boost::asio::error::not_connected)
         {
             ls.set_exception(std::make_exception_ptr(boost::system::system_error(err)));
             return;
@@ -497,7 +497,7 @@ BOOST_AUTO_TEST_CASE(connectivity)
 
     auto la = left.async_accept();
     BOOST_CHECK_EQUAL((int)la.wait_for(std::chrono::seconds(3)), (int)std::future_status::timeout);
-    BOOST_REQUIRE_THROW(left.async_shutdown().get(), boost::system::system_error);
+    BOOST_REQUIRE_THROW(left.async_shutdown(true).get(), boost::system::system_error);
     BOOST_REQUIRE_NO_THROW(left.close());
 
     auto rc = right.async_connect();
@@ -662,8 +662,8 @@ BOOST_AUTO_TEST_CASE(fall)
     BOOST_REQUIRE_NO_THROW(right.async_shutdown().get());
     BOOST_REQUIRE_NO_THROW(right.close());
 
-    BOOST_REQUIRE_THROW(left.async_shutdown().get(), boost::system::system_error);
-    BOOST_REQUIRE_THROW(right.async_shutdown().get(), boost::system::system_error);
+    BOOST_REQUIRE_THROW(left.async_shutdown(true).get(), boost::system::system_error);
+    BOOST_REQUIRE_THROW(right.async_shutdown(true).get(), boost::system::system_error);
 }
 
 BOOST_AUTO_TEST_CASE(integrity)

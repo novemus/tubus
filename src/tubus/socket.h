@@ -405,12 +405,12 @@ public:
 };
 
 namespace udp {
-    typedef tubus::socket<tubus::channel<boost::asio::ip::udp>> socket;
+    typedef tubus::socket<tubus::udp_channel> socket;
     typedef boost::asio::ip::udp::endpoint endpoint;
 }
 
 namespace tcp {
-    typedef tubus::socket<tubus::channel<boost::asio::ip::tcp>> socket;
+    typedef tubus::socket<tubus::tcp_channel> socket;
     typedef boost::asio::ip::tcp::endpoint endpoint;
 }
 

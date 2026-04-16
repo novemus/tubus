@@ -22,6 +22,10 @@
 #include <netinet/tcp.h>
 #endif
 
+#ifdef __APPLE__
+#define TCP_KEEPIDLE TCP_KEEPALIVE
+#endif
+
 namespace tubus { namespace tcp { namespace proto {
 
 static constexpr uint64_t head_size = sizeof(uint64_t) * 2;
