@@ -53,7 +53,7 @@ unsigned short find_free_port()
 {
     boost::asio::ip::tcp::acceptor acceptor(g_reactor.io);
     
-    boost::asio::ip::tcp::endpoint ep(boost::asio::ip::address_v4::any(), 0);
+    boost::asio::ip::tcp::endpoint ep(boost::asio::ip::address_v4::loopback(), 0);
     acceptor.open(ep.protocol());
     acceptor.bind(ep);
     acceptor.listen();
@@ -265,14 +265,14 @@ template<class channel> void make_speed_test()
 
     size_t written = 0;
 
-    std::promise<void> wp;
-    std::future<void> wf = wp.get_future();
+    std::promise<boost::system::error_code> wp;
+    std::future<boost::system::error_code> wf = wp.get_future();
 
     tubus::io_callback on_write = [&](const boost::system::error_code& err, size_t size)
     {
         if (err)
         {
-            wp.set_exception(std::make_exception_ptr(boost::system::system_error(err)));
+            wp.set_value(err);
             return;
         }
 
@@ -285,7 +285,7 @@ template<class channel> void make_speed_test()
         }
         else
         {
-            wp.set_value();
+            wp.set_value(boost::system::error_code());
         }
     };
 
@@ -293,7 +293,7 @@ template<class channel> void make_speed_test()
     {
         if (err)
         {
-            wp.set_exception(std::make_exception_ptr(boost::system::system_error(err)));
+            wp.set_value(err);
             return;
         }
 
@@ -302,14 +302,14 @@ template<class channel> void make_speed_test()
 
     size_t read = 0;
 
-    std::promise<void> rp;
-    std::future<void> rf = rp.get_future();
+    std::promise<boost::system::error_code> rp;
+    std::future<boost::system::error_code> rf = rp.get_future();
 
     tubus::io_callback on_read = [&](const boost::system::error_code& err, size_t size)
     {
         if (err)
         {
-            rp.set_exception(std::make_exception_ptr(boost::system::system_error(err)));
+            rp.set_value(err);
             return;
         }
 
@@ -322,7 +322,7 @@ template<class channel> void make_speed_test()
         }
         else
         {
-            rp.set_value();
+            rp.set_value(boost::system::error_code());
         }
     };
 
@@ -330,7 +330,7 @@ template<class channel> void make_speed_test()
     {
         if (err)
         {
-            rp.set_exception(std::make_exception_ptr(boost::system::system_error(err)));
+            rp.set_value(err);
             return;
         }
 
@@ -345,8 +345,8 @@ template<class channel> void make_speed_test()
 
     auto begin = boost::posix_time::microsec_clock::local_time();
 
-    BOOST_REQUIRE_NO_THROW(wf.get());
-    BOOST_REQUIRE_NO_THROW(rf.get());
+    BOOST_REQUIRE_EQUAL(wf.get(), boost::system::error_code());
+    BOOST_REQUIRE_EQUAL(rf.get(), boost::system::error_code());
 
     auto time = boost::posix_time::microsec_clock::local_time() - begin;
 
@@ -354,30 +354,30 @@ template<class channel> void make_speed_test()
         "traffic: " << float(TRAFFIC) / MB  << " MB\ntime: " << time  << "\nspeed: " << float(TRAFFIC) / time.total_milliseconds() * 1000 / MB * 8 << " Mb/s"
         );
 
-    std::promise<void> rs;
+    std::promise<boost::system::error_code> rs;
     right->shutdown([&](const boost::system::error_code& err)
     {
         if (err && err != boost::asio::error::not_connected)
         {
-            rp.set_exception(std::make_exception_ptr(boost::system::system_error(err)));
+            rs.set_value(err);
             return;
         }
-        rs.set_value();
+        rs.set_value(boost::system::error_code());
     });
 
-    std::promise<void> ls;
+    std::promise<boost::system::error_code> ls;
     left->shutdown([&](const boost::system::error_code& err)
     {
         if (err && err != boost::asio::error::not_connected)
         {
-            ls.set_exception(std::make_exception_ptr(boost::system::system_error(err)));
+            ls.set_value(err);
             return;
         }
-        ls.set_value();
+        ls.set_value(boost::system::error_code());
     });
 
-    BOOST_REQUIRE_NO_THROW(rs.get_future().get());
-    BOOST_REQUIRE_NO_THROW(ls.get_future().get());
+    BOOST_REQUIRE_EQUAL(rs.get_future().get(), boost::system::error_code());
+    BOOST_REQUIRE_EQUAL(ls.get_future().get(), boost::system::error_code());
 
     right->close();
     left->close();
@@ -388,7 +388,6 @@ template<class channel> void make_order_test()
     typename channel::endpoint le(boost::asio::ip::make_address("127.0.0.1"), find_free_port());
     typename channel::endpoint re(boost::asio::ip::make_address("127.0.0.1"), find_free_port());
 
-    boost::asio::io_context io;
     auto left = channel::create(g_reactor.io, 1234567890);
     auto right = channel::create(g_reactor.io, 1234567890);
 
