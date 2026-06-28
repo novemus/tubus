@@ -941,21 +941,79 @@ protected:
         if (size > 0)
         {
             mutable_buffer buffer((size + 0xFF) & ~0xFF);
-            m_socket.async_receive(buffer, [this, weak = weak_from_this(), buffer](const boost::system::error_code& error, size_t size)
+            if (m_remote.address().is_unspecified() || m_remote.port() == 0)
             {
-                if (auto self = weak.lock())
+                auto remote = std::make_shared<boost::asio::ip::udp::endpoint>();
+                m_socket.async_receive_from(buffer, *remote, [this, weak = weak_from_this(), remote, buffer](const boost::system::error_code& error, size_t size)
                 {
-                    if (error)
+                    if (auto self = weak.lock())
                     {
-                        mistake(error);
+                        if (error)
+                        {
+                            mistake(error);
+                        }
+                        else
+                        {
+                            auto verify = [&]()
+                            {
+                                std::unique_lock<std::mutex> lock(m_mutex);
+
+                                if (m_remote.port() != 0 && m_remote.port() != remote->port())
+                                    return false;
+                                if (!m_remote.address().is_unspecified() && m_remote.address() != remote->address())
+                                    return false;
+
+                                m_remote = *remote;
+                                return true;
+                            };
+
+                            auto connect = [&]()
+                            {
+                                std::unique_lock<std::mutex> lock(m_mutex);
+
+                                boost::system::error_code ec;
+                                if (m_socket.connect(m_remote, ec))
+                                {
+                                    mistake(ec);
+                                    return false;
+                                }
+
+                                return true;
+                            };
+
+                            if (verify())
+                            {
+                                feed(buffer.slice(0, size));
+
+                                if (connect())
+                                    consume();
+                            }
+                            else
+                            {
+                                consume();
+                            }
+                        }
                     }
-                    else
+                });
+            }
+            else
+            {
+                m_socket.async_receive(buffer, [this, weak = weak_from_this(), buffer](const boost::system::error_code& error, size_t size)
+                {
+                    if (auto self = weak.lock())
                     {
-                        feed(buffer.slice(0, size));
-                        consume();
+                        if (error)
+                        {
+                            mistake(error);
+                        }
+                        else
+                        {
+                            feed(buffer.slice(0, size));
+                            consume();
+                        }
                     }
-                }
-            });
+                });
+            }
         }
         else
         {
@@ -1169,13 +1227,18 @@ public:
             return;
         }
 
-        boost::system::error_code ec;
-        m_socket.connect(remote, ec);
+        m_remote = remote;
 
-        if (ec)
+        if (!m_remote.address().is_unspecified() && m_remote.port() != 0)
         {
-            boost::asio::post(m_socket.get_executor(), boost::bind(handler, ec));
-            return;
+            boost::system::error_code ec;
+            m_socket.connect(remote, ec);
+
+            if (ec)
+            {
+                boost::asio::post(m_socket.get_executor(), boost::bind(handler, ec));
+                return;
+            }
         }
 
         if (m_connector.accept(handler))
@@ -1247,6 +1310,7 @@ private:
     boost::asio::ip::udp::socket m_socket;
     boost::asio::deadline_timer m_timer;
     boost::posix_time::time_duration m_repeat;
+    boost::asio::ip::udp::endpoint m_remote;
     mutable_buffer m_buffer;
     connector m_connector;
     istreamer m_istreamer;

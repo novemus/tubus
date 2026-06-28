@@ -476,6 +476,55 @@ template<class channel> void make_order_test()
     BOOST_REQUIRE_NO_THROW(right->close());
 }
 
+template<class channel> void make_accept_test()
+{
+    typename channel::endpoint le(boost::asio::ip::make_address("127.0.0.1"), find_free_port());
+    typename channel::endpoint re(boost::asio::ip::make_address("127.0.0.1"), find_free_port());
+    typename channel::endpoint fe(boost::asio::ip::make_address("0.0.0.0"), 0);
+
+    auto left = channel::create(g_reactor.io, 1234567890);
+    auto right = channel::create(g_reactor.io, 1234567890);
+
+    left->open(le);
+    right->open(re);
+
+    tubus::const_buffer wb("ping");
+    tubus::mutable_buffer rb(wb.size());
+
+    std::promise<void> wp;
+    left->accept(fe, [&](const boost::system::error_code& err)
+    {
+        BOOST_REQUIRE_EQUAL(err, boost::system::error_code());
+        BOOST_REQUIRE_EQUAL(left->peer(), re);
+
+        left->write(wb, [&](const boost::system::error_code& err, size_t size)
+        {
+            BOOST_CHECK_EQUAL(err, boost::system::error_code());
+            BOOST_CHECK_EQUAL(size, wb.size());
+            wp.set_value();
+        });
+    });
+
+    std::promise<void> rp;
+    right->connect(le, [&](const boost::system::error_code& err)
+    {
+        BOOST_REQUIRE_EQUAL(err, boost::system::error_code());
+
+        right->read(rb, [&](const boost::system::error_code& err, size_t size)
+        {
+            BOOST_CHECK_EQUAL(err, boost::system::error_code());
+            BOOST_CHECK_EQUAL(rb.size() == size && std::memcmp(rb.data(), wb.data(), rb.size()) == 0, true);
+            rp.set_value();
+        });
+    });
+
+    BOOST_REQUIRE_NO_THROW(wp.get_future().get());
+    BOOST_REQUIRE_NO_THROW(rp.get_future().get());
+
+    BOOST_REQUIRE_NO_THROW(left->close());
+    BOOST_REQUIRE_NO_THROW(right->close());
+}
+
 BOOST_AUTO_TEST_SUITE(udp_channel);
 
 BOOST_AUTO_TEST_CASE(core)
@@ -616,6 +665,11 @@ BOOST_AUTO_TEST_CASE(speed)
     make_speed_test<tubus::udp_channel>();
 }
 
+BOOST_AUTO_TEST_CASE(accept)
+{
+    make_accept_test<tubus::udp_channel>();
+}
+
 BOOST_AUTO_TEST_SUITE_END();
 
 BOOST_AUTO_TEST_SUITE(tcp_channel);
@@ -727,6 +781,11 @@ BOOST_AUTO_TEST_CASE(order)
 BOOST_AUTO_TEST_CASE(speed)
 {
     make_speed_test<tubus::tcp_channel>();
+}
+
+BOOST_AUTO_TEST_CASE(accept)
+{
+    make_accept_test<tubus::tcp_channel>();
 }
 
 BOOST_AUTO_TEST_SUITE_END();
