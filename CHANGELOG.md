@@ -1,5 +1,9 @@
 # Change Log
 
+## 1.3.1 (Jul 11, 2026)
+
+- Accept partially specified UDP peer.
+
 ## 1.3.0 (Feb 24, 2026)
 
 - TCP-based implementation.
