@@ -76,6 +76,7 @@ else()
     set(CMAKE_STATIC_LIBRARY_PREFIX "lib")
     set(CMAKE_SHARED_LIBRARY_PREFIX "lib")
     set(CMAKE_STATIC_LIBRARY_SUFFIX "-static.lib")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /bigobj")
     add_definitions(-D_WIN32_WINNT=0x0601 -DINCL_EXTRA_HTON_FUNCTIONS)
 endif()
 
